@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Identity/">
+    <Project Path="src/Services/Identity/CoachingFit.Identity.API/CoachingFit.Identity.API.csproj" />
+    <Project Path="src/Services/Identity/CoachingFit.Identity.Core/CoachingFit.Identity.Core.csproj" />
+    <Project Path="src/Services/Identity/CoachingFit.Identity.Infrastructure/CoachingFit.Identity.Infrastructure.csproj" />
+    <Project Path="src/Services/Identity/CoachingFit.Identity.Services.Abstraction/CoachingFit.Identity.Services.Abstraction.csproj" />
+    <Project Path="src/Services/Identity/CoachingFit.Identity.Services/CoachingFit.Identity.Services.csproj" />
+    <Project Path="src/Services/Identity/CoachingFit.Identity.Shared/CoachingFit.Identity.Shared.csproj" />
+  </Folder>
+</Solution>

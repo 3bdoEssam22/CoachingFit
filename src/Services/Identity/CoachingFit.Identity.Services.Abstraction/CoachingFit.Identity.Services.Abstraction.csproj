@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoachingFit.Identity.Core\CoachingFit.Identity.Core.csproj" />
+    <ProjectReference Include="..\CoachingFit.Identity.Shared\CoachingFit.Identity.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
