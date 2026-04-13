@@ -10,7 +10,8 @@ namespace CoachingFit.Identity.Services.Abstraction
         Task<GenericResponse<AuthResponse>> RegisterTraineeAsync(RegisterTraineeRequest request);
         Task<GenericResponse<AuthResponse>> LoginAsync(LoginRequest request);
         Task<GenericResponse<AuthResponse>> GetCurrentUserAsync(string userId);
-        //Task<GenericResponse<bool>> ConfirmEmailAsync(string userId, string token);
-        //Task<GenericResponse<bool>> ResendConfirmationEmailAsync(string email);
+        Task<GenericResponse<bool>> ConfirmEmailAsync(string userId, string token);
+        Task<GenericResponse<bool>> ResendConfirmationEmailAsync(string email, string baseUrl);
+        Task<GenericResponse<bool>> ActivateCoachAsync(string coachId);
     }
 }

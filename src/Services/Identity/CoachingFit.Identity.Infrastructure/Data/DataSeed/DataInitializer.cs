@@ -53,6 +53,9 @@ namespace CoachingFit.Identity.Infrastructure.Data.DataSeed
                     $"Failed to seed admin: {string.Join(", ", result.Errors.Select(e => e.Description))}");
 
             await _userManager.AddToRoleAsync(admin, nameof(UserRole.Admin));
+
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(admin);
+            await _userManager.ConfirmEmailAsync(admin, token);
         }
     }
 }

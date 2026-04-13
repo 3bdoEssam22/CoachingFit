@@ -3,6 +3,7 @@ using CoachingFit.Identity.Core.Enums;
 using CoachingFit.Identity.Services.Abstraction;
 using CoachingFit.Identity.Shared.DTOs.Requests;
 using CoachingFit.Identity.Shared.DTOs.Responses;
+using CoachingFit.Identity.Shared.Messages;
 using CoachingFit.Identity.Shared.Wrappers;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
@@ -50,6 +51,27 @@ namespace CoachingFit.Identity.Services
 
             await _userManager.AddToRoleAsync(user, nameof(UserRole.Coach));
 
+            // Confirm coach email automatically
+            // (coach doesn't need email confirmation — admin verifies credentials instead)
+            var confirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            await _userManager.ConfirmEmailAsync(user, confirmToken);
+
+            // Send application received email
+            await _emailService.SendEmailAsync(new EmailMessage
+            {
+                To = user.Email!,
+                Subject = "CoachingFit — Application Received",
+                Body = $"""
+                          <h2>Hi {user.FirstName},</h2>
+                          <p>Thank you for applying to join CoachingFit as a coach!</p>
+                          <p>Your application is currently under review. Our team will verify 
+                          your credentials and activate your account shortly.</p>
+                          <p>You will receive another email once your account is activated.</p>
+                          <br/>
+                          <p>The CoachingFit Team</p>
+                          """
+            });
+
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Coach registered successfully. Waiting for admin approval.";
             response.Data = new AuthResponse
@@ -94,6 +116,7 @@ namespace CoachingFit.Identity.Services
             await _userManager.AddToRoleAsync(user, nameof(UserRole.Trainee));
 
             var (token, expiresAt) = _jwtService.GenerateToken(user, nameof(UserRole.Trainee));
+
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Trainee registered successfully.";
