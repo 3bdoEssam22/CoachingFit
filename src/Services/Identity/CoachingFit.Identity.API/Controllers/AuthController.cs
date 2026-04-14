@@ -46,7 +46,7 @@ namespace CoachingFit.Identity.API.Controllers
         [HttpGet("me")]
         public async Task<ActionResult<GenericResponse<AuthResponse>>> Me()
         {
-            var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 

@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/src/" />
+  <Folder Name="/src/Gateway/">
+    <Project Path="src/Gateway/CoachingFit.Gateway/CoachingFit.Gateway.csproj" Id="262087c3-890f-4bc4-9cf5-47c6af6e65c3" />
+  </Folder>
   <Folder Name="/src/Services/" />
   <Folder Name="/src/Services/Identity/">
     <Project Path="src/Services/Identity/CoachingFit.Identity.API/CoachingFit.Identity.API.csproj" />
