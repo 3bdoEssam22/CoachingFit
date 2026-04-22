@@ -1,10 +1,11 @@
-﻿using CoachingFit.User.Core.Entities;
+﻿using CoachingFit.User.Core.contracts;
+using CoachingFit.User.Core.Entities;
+using CoachingFit.User.Services.Abstraction;
 using CoachingFit.User.Shared.DTOs.Requests;
 using CoachingFit.User.Shared.DTOs.Responses;
 using CoachingFit.User.Shared.Wrappers;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 
 namespace CoachingFit.User.Services
 {
