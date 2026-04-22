@@ -4,7 +4,6 @@ using CoachingFit.Identity.Shared.DTOs.Responses;
 using CoachingFit.Identity.Shared.Wrappers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace CoachingFit.Identity.API.Controllers

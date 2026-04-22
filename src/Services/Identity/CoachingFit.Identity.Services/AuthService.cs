@@ -49,7 +49,14 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            await _userManager.AddToRoleAsync(user, nameof(UserRole.Coach));
+            var addToRoleResult = await _userManager.AddToRoleAsync(user, nameof(UserRole.Coach));
+            if (!addToRoleResult.Succeeded)
+            {
+                await _userManager.DeleteAsync(user);
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = string.Join(" | ", addToRoleResult.Errors.Select(e => e.Description));
+                return response;
+            }
 
             // Confirm coach email automatically
             // (coach doesn't need email confirmation — admin verifies credentials instead)
@@ -72,7 +79,7 @@ namespace CoachingFit.Identity.Services
                           """
             });
 
-            response.StatusCode = StatusCodes.Status200OK;
+            response.StatusCode = StatusCodes.Status201Created;
             response.Message = "Coach registered successfully. Waiting for admin approval.";
             response.Data = new AuthResponse
             {
@@ -113,11 +120,18 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            await _userManager.AddToRoleAsync(user, nameof(UserRole.Trainee));
+            var addToRoleResult = await _userManager.AddToRoleAsync(user, nameof(UserRole.Trainee));
+            if (!addToRoleResult.Succeeded)
+            {
+                await _userManager.DeleteAsync(user);
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = string.Join(" | ", addToRoleResult.Errors.Select(e => e.Description));
+                return response;
+            }
 
             await SendConfirmationEmailAsync(user, baseUrl);
 
-            response.StatusCode = StatusCodes.Status200OK;
+            response.StatusCode = StatusCodes.Status201Created;
             response.Message = "Trainee registered successfully.";
             response.Data = new AuthResponse
             {

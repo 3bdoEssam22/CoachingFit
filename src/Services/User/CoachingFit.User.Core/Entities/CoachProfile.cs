@@ -1,4 +1,6 @@
-﻿namespace CoachingFit.User.Core.Entities
+﻿using CoachingFit.User.Core.Enums;
+
+namespace CoachingFit.User.Core.Entities
 {
     public class CoachProfile : BaseEntity
     {
@@ -6,5 +8,7 @@
         public string Bio { get; set; } = null!;
         public int ExperienceYears { get; set; }
         public string? ProfilePhotoUrl { get; set; }
+        public Gender Gender { get; set; }
+
     }
 }

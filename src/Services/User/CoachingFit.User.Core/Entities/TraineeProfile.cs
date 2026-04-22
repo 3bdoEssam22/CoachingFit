@@ -1,9 +1,8 @@
 ﻿using CoachingFit.User.Core.Enums;
-using System.Reflection;
 
 namespace CoachingFit.User.Core.Entities
 {
-    public class TraineeProfile
+    public class TraineeProfile : BaseEntity
     {
         public string UserId { get; set; } = null!;
         public Gender Gender { get; set; }

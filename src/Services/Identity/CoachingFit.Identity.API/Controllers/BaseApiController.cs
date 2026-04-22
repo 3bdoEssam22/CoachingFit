@@ -16,6 +16,8 @@ namespace CoachingFit.Identity.API.Controllers
             {
                 StatusCodes.Status200OK
                     => Ok(response),
+                StatusCodes.Status201Created
+                    => StatusCode(StatusCodes.Status201Created, response),
                 StatusCodes.Status400BadRequest
                     => BadRequest(response),
                 StatusCodes.Status401Unauthorized

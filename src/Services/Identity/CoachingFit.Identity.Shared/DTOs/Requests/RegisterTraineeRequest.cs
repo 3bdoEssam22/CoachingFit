@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace CoachingFit.Identity.Shared.DTOs.Requests
 {
     public class RegisterTraineeRequest
