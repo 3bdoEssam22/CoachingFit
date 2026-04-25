@@ -18,7 +18,7 @@ namespace CoachingFit.Identity.API.Controllers
         public async Task<ActionResult<GenericResponse<AuthResponse>>> RegisterCoach(
             [FromBody] RegisterCoachRequest request)
         {
-            var result = await _authService.RegisterCoachAsync(request);
+            var result = await _authService.RegisterCoachAsync(request, GetBaseUrl());
             return HandleResponse(result);
         }
 
@@ -78,6 +78,15 @@ namespace CoachingFit.Identity.API.Controllers
         public async Task<ActionResult<GenericResponse<bool>>> ActivateCoach(string id)
         {
             var result = await _authService.ActivateCoachAsync(id);
+            return HandleResponse(result);
+        }
+
+        // GET api/Auth/coaches/pending
+        [Authorize(Roles = "Admin")]
+        [HttpGet("coaches/pending")]
+        public async Task<ActionResult<GenericResponse<IEnumerable<string>>>> GetPendingCoaches()
+        {
+            var result = await _authService.GetPendingCoachUserIdsAsync();
             return HandleResponse(result);
         }
     }

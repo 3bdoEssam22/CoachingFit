@@ -7,15 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CoachingFit.User.Services.Abstraction\CoachingFit.User.Services.Abstraction.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Data\Context\" />
+    <ProjectReference Include="..\CoachingFit.User.Services\CoachingFit.User.Services.csproj" />
   </ItemGroup>
 
 </Project>

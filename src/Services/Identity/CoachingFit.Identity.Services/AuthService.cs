@@ -19,7 +19,8 @@ namespace CoachingFit.Identity.Services
         IValidator<RegisterTraineeRequest> _registerTraineeValidator,
         IValidator<LoginRequest> _loginValidator) : IAuthService
     {
-        public async Task<GenericResponse<AuthResponse>> RegisterCoachAsync(RegisterCoachRequest request)
+        public async Task<GenericResponse<AuthResponse>> RegisterCoachAsync(
+            RegisterCoachRequest request, string baseUrl)
         {
             var response = new GenericResponse<AuthResponse>();
 
@@ -58,29 +59,10 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            // Confirm coach email automatically
-            // (coach doesn't need email confirmation — admin verifies credentials instead)
-            var confirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            await _userManager.ConfirmEmailAsync(user, confirmToken);
-
-            // Send application received email
-            await _emailService.SendEmailAsync(new EmailMessage
-            {
-                To = user.Email!,
-                Subject = "CoachingFit — Application Received",
-                Body = $"""
-                          <h2>Hi {user.FirstName},</h2>
-                          <p>Thank you for applying to join CoachingFit as a coach!</p>
-                          <p>Your application is currently under review. Our team will verify 
-                          your credentials and activate your account shortly.</p>
-                          <p>You will receive another email once your account is activated.</p>
-                          <br/>
-                          <p>The CoachingFit Team</p>
-                          """
-            });
+            await SendConfirmationEmailAsync(user, baseUrl);
 
             response.StatusCode = StatusCodes.Status201Created;
-            response.Message = "Coach registered successfully. Waiting for admin approval.";
+            response.Message = "Coach registered successfully. Please confirm your email.";
             response.Data = new AuthResponse
             {
                 UserId = user.Id,
@@ -90,7 +72,6 @@ namespace CoachingFit.Identity.Services
             };
             return response;
         }
-
         public async Task<GenericResponse<AuthResponse>> RegisterTraineeAsync(RegisterTraineeRequest request, string baseUrl)
         {
             var response = new GenericResponse<AuthResponse>();
@@ -177,13 +158,6 @@ namespace CoachingFit.Identity.Services
 
             // Password is correct — now check account status
             await _userManager.ResetAccessFailedCountAsync(user);
-
-            if (!user.IsActive)
-            {
-                response.StatusCode = StatusCodes.Status403Forbidden;
-                response.Message = "Your account is not active yet.";
-                return response;
-            }
 
             if (await _userManager.IsLockedOutAsync(user))
             {
@@ -361,6 +335,21 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
+        public async Task<GenericResponse<IEnumerable<string>>> GetPendingCoachUserIdsAsync()
+        {
+            var response = new GenericResponse<IEnumerable<string>>();
+
+            var coaches = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Coach));
+            var pendingIds = coaches
+                .Where(c => !c.IsActive)
+                .Select(c => c.Id);
+
+            response.StatusCode = StatusCodes.Status200OK;
+            response.Message = "Pending coach IDs retrieved successfully.";
+            response.Data = pendingIds;
+            return response;
+        }
+
         // ── Private Helper ─────────────────────────────────────────────────────────
         private async Task SendConfirmationEmailAsync(ApplicationUser user, string baseUrl)
         {
@@ -385,5 +374,6 @@ namespace CoachingFit.Identity.Services
                   """
             });
         }
+
     }
 }
