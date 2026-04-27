@@ -15,9 +15,12 @@ namespace CoachingFit.User.API.Controllers
         [Authorize(Roles = "Coach")]
         [HttpPost]
         public async Task<ActionResult<GenericResponse<CoachProfileResponse>>> Create(
-            [FromBody] CreateCoachProfileRequest request)
+            [FromForm] CreateCoachProfileRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
             var result = await _coachProfileService.CreateAsync(request, userId);
             return HandleResponse(result);
         }
@@ -36,7 +39,10 @@ namespace CoachingFit.User.API.Controllers
         [HttpGet("me")]
         public async Task<ActionResult<GenericResponse<CoachProfileResponse>>> GetMy()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
             var result = await _coachProfileService.GetByUserIdAsync(userId);
             return HandleResponse(result);
         }
@@ -45,9 +51,12 @@ namespace CoachingFit.User.API.Controllers
         [Authorize(Roles = "Coach")]
         [HttpPut]
         public async Task<ActionResult<GenericResponse<CoachProfileResponse>>> Update(
-            [FromBody] UpdateCoachProfileRequest request)
+            [FromForm] UpdateCoachProfileRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
             var result = await _coachProfileService.UpdateAsync(request, userId);
             return HandleResponse(result);
         }

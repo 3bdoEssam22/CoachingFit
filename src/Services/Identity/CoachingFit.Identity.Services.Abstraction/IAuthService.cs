@@ -1,7 +1,6 @@
 ﻿using CoachingFit.Identity.Shared.DTOs.Requests;
 using CoachingFit.Identity.Shared.DTOs.Responses;
 using CoachingFit.Identity.Shared.Wrappers;
-using System.Buffers.Text;
 
 namespace CoachingFit.Identity.Services.Abstraction
 {

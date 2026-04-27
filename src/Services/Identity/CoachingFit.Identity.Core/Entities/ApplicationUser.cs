@@ -1,3 +1,4 @@
+using CoachingFit.Identity.Core.Enums;
 using Microsoft.AspNetCore.Identity;
 
 namespace CoachingFit.Identity.Core.Entities
@@ -9,6 +10,7 @@ namespace CoachingFit.Identity.Core.Entities
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public UserRole UserRole { get; set; }
 
         public string FullName => $"{FirstName} {LastName}";
     }

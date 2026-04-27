@@ -5,6 +5,8 @@ namespace CoachingFit.User.Services.Validators
 {
     public class UpdateTraineeProfileValidator : AbstractValidator<UpdateTraineeProfileRequest>
     {
+        private static readonly string[] _allowedTypes =
+            ["image/jpeg", "image/jpg", "image/png", "image/webp"];
         public UpdateTraineeProfileValidator()
         {
             RuleFor(x => x.WeightKg)
@@ -25,6 +27,17 @@ namespace CoachingFit.User.Services.Validators
             RuleFor(x => x.MedicalNotes)
                 .MaximumLength(500).WithMessage("Medical notes cannot exceed 500 characters.")
                 .When(x => x.MedicalNotes is not null);
+
+            When(x => x.Photo is not null, () =>
+            {
+                RuleFor(x => x.Photo!.Length)
+                    .LessThanOrEqualTo(5 * 1024 * 1024)
+                    .WithMessage("Photo must not exceed 5MB.");
+
+                RuleFor(x => x.Photo!.ContentType)
+                    .Must(type => _allowedTypes.Contains(type))
+                    .WithMessage("Photo must be a JPG, PNG, or WebP image.");
+            });
         }
     }
 }

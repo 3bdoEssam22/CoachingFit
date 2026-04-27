@@ -1,5 +1,6 @@
 ﻿using CoachingFit.User.Core.Contracts;
 using CoachingFit.User.Infrastructure.Data.Context;
+using CoachingFit.User.Infrastructure.ExternalServices;
 using CoachingFit.User.Services;
 using CoachingFit.User.Services.Abstraction;
 using CoachingFit.User.Services.Validators;
@@ -23,6 +24,11 @@ namespace CoachingFit.User.Infrastructure.Extensions
             // IUserDbContext → UserDbContext
             services.AddScoped<IUserDbContext>(sp =>
                 sp.GetRequiredService<UserDbContext>());
+
+            // Cloudinary
+            services.Configure<CloudinarySettings>(
+                configuration.GetSection("Cloudinary"));
+            services.AddScoped<ICloudinaryService, CloudinaryService>();
 
             // Services
             services.AddScoped<ICoachProfileService, CoachProfileService>();

@@ -1,4 +1,5 @@
 using CoachingFit.Identity.Core.Entities;
+using CoachingFit.Identity.Core.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,8 @@ namespace CoachingFit.Identity.Infrastructure.Data.Context
             {
                 entity.ToTable("Users");
                 entity.Property(u => u.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(u => u.UserRole)
+                    .HasConversion<int>();
                 entity.Ignore(u => u.FullName);
             });
             builder.Entity<IdentityRole>().ToTable("Roles");

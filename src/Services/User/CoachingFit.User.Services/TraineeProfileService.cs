@@ -1,5 +1,6 @@
-﻿using CoachingFit.User.Core.Contracts;
+using CoachingFit.User.Core.Contracts;
 using CoachingFit.User.Core.Entities;
+using CoachingFit.User.Core.Enums;
 using CoachingFit.User.Services.Abstraction;
 using CoachingFit.User.Shared.DTOs.Requests;
 using CoachingFit.User.Shared.DTOs.Responses;
@@ -7,13 +8,16 @@ using CoachingFit.User.Shared.Wrappers;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CoachingFit.User.Services
 {
     public class TraineeProfileService(
-            IUserDbContext _context,
-            IValidator<CreateTraineeProfileRequest> _createValidator,
-            IValidator<UpdateTraineeProfileRequest> _updateValidator) : ITraineeProfileService
+        IUserDbContext _context,
+        ICloudinaryService _cloudinaryService,
+        ILogger<TraineeProfileService> _logger,
+        IValidator<CreateTraineeProfileRequest> _createValidator,
+        IValidator<UpdateTraineeProfileRequest> _updateValidator) : ITraineeProfileService
     {
         public async Task<GenericResponse<TraineeProfileResponse>> CreateAsync(
             CreateTraineeProfileRequest request, string userId)
@@ -36,21 +40,39 @@ namespace CoachingFit.User.Services
                 return response;
             }
 
+            string? photoUrl = null;
+            if (request.Photo is not null)
+            {
+                try
+                {
+                    photoUrl = await _cloudinaryService.UploadImageAsync(request.Photo);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to upload profile photo for trainee {UserId}", userId);
+                    response.StatusCode = StatusCodes.Status500InternalServerError;
+                    response.Message = "Failed to upload profile photo. Please try again later.";
+                    return response;
+                }
+            }
+
+            var gender = Enum.Parse<Gender>(request.Gender, true);
+
             var profile = new TraineeProfile
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,
-                Gender = request.Gender,
+                Gender = gender,
                 DateOfBirth = request.DateOfBirth,
                 WeightKg = request.WeightKg,
                 HeightCm = request.HeightCm,
                 FitnessLevel = request.FitnessLevel,
                 Goals = request.Goals,
                 MedicalNotes = request.MedicalNotes,
-                CreatedAt = DateTime.UtcNow
+                ProfilePhotoUrl = photoUrl
             };
 
-            await _context.TraineeProfiles.AddAsync(profile);
+            await _context.AddTraineeProfileAsync(profile);
             await _context.SaveChangesAsync();
 
             response.StatusCode = StatusCodes.Status201Created;
@@ -63,7 +85,7 @@ namespace CoachingFit.User.Services
         {
             var response = new GenericResponse<TraineeProfileResponse>();
 
-            var profile = await _context.TraineeProfiles.FindAsync(id);
+            var profile = await _context.FindTraineeProfileAsync(id);
             if (profile is null)
             {
                 response.StatusCode = StatusCodes.Status404NotFound;
@@ -125,7 +147,22 @@ namespace CoachingFit.User.Services
             profile.MedicalNotes = request.MedicalNotes;
             profile.UpdatedAt = DateTime.UtcNow;
 
-            _context.TraineeProfiles.Update(profile);
+            if (request.Photo is not null)
+            {
+                try
+                {
+                    profile.ProfilePhotoUrl = await _cloudinaryService.UploadImageAsync(request.Photo);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to upload profile photo for trainee {UserId}", userId);
+                    response.StatusCode = StatusCodes.Status500InternalServerError;
+                    response.Message = "Failed to upload profile photo. Please try again later.";
+                    return response;
+                }
+            }
+
+            _context.UpdateTraineeProfile(profile);
             await _context.SaveChangesAsync();
 
             response.StatusCode = StatusCodes.Status200OK;
@@ -138,7 +175,7 @@ namespace CoachingFit.User.Services
         {
             Id = profile.Id,
             UserId = profile.UserId,
-            Gender = profile.Gender,
+            Gender = profile.Gender.ToString(),
             DateOfBirth = profile.DateOfBirth,
             WeightKg = profile.WeightKg,
             HeightCm = profile.HeightCm,

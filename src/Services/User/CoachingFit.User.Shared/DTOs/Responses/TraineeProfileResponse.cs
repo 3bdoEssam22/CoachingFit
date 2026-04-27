@@ -1,4 +1,4 @@
-﻿using CoachingFit.User.Core.Enums;
+using CoachingFit.User.Core.Enums;
 
 namespace CoachingFit.User.Shared.DTOs.Responses
 {
@@ -6,7 +6,7 @@ namespace CoachingFit.User.Shared.DTOs.Responses
     {
         public Guid Id { get; set; }
         public string UserId { get; set; } = null!;
-        public Gender Gender { get; set; }
+        public string Gender { get; set; } = null!;
         public DateTime DateOfBirth { get; set; }
         public double WeightKg { get; set; }
         public double HeightCm { get; set; }

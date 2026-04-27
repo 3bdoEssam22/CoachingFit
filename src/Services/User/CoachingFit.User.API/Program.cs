@@ -3,6 +3,7 @@ using CoachingFit.User.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using System.Text.Json.Serialization;
 using System.Text;
 
 namespace CoachingFit.User.API
@@ -15,7 +16,11 @@ namespace CoachingFit.User.API
 
             #region Services
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                });
 
             #region Swagger
             builder.Services.AddEndpointsApiExplorer();

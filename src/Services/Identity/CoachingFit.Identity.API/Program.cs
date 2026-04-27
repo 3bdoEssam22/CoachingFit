@@ -8,7 +8,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 namespace CoachingFit.Identity.API

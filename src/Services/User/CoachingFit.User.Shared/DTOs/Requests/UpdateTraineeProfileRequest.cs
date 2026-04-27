@@ -1,4 +1,5 @@
 ﻿using CoachingFit.User.Core.Enums;
+using Microsoft.AspNetCore.Http;
 
 namespace CoachingFit.User.Shared.DTOs.Requests
 {
@@ -9,5 +10,6 @@ namespace CoachingFit.User.Shared.DTOs.Requests
         public FitnessLevel FitnessLevel { get; set; }
         public string Goals { get; set; } = null!;
         public string? MedicalNotes { get; set; }
+        public IFormFile? Photo { get; set; }
     }
 }

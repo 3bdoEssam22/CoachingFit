@@ -44,7 +44,8 @@ namespace CoachingFit.Identity.Infrastructure.Data.DataSeed
                 Email = adminEmail,
                 UserName = "admin_coachingfit",
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UserRole = UserRole.Admin
             };
 
             var result = await _userManager.CreateAsync(admin, adminPassword);
