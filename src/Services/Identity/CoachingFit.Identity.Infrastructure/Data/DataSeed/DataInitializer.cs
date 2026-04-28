@@ -1,6 +1,5 @@
 ﻿using CoachingFit.Identity.Core.Contracts;
 using CoachingFit.Identity.Core.Entities;
-using CoachingFit.Identity.Core.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 
@@ -19,7 +18,7 @@ namespace CoachingFit.Identity.Infrastructure.Data.DataSeed
 
         private async Task SeedRolesAsync()
         {
-            string[] roles = [nameof(UserRole.Admin), nameof(UserRole.Coach), nameof(UserRole.Trainee)];
+            string[] roles = ["Admin", "Coach", "Trainee"];
 
             foreach (var role in roles)
                 if (!await _roleManager.RoleExistsAsync(role))
@@ -44,8 +43,7 @@ namespace CoachingFit.Identity.Infrastructure.Data.DataSeed
                 Email = adminEmail,
                 UserName = "admin_coachingfit",
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UserRole = UserRole.Admin
+                CreatedAt = DateTime.UtcNow
             };
 
             var result = await _userManager.CreateAsync(admin, adminPassword);
@@ -53,7 +51,7 @@ namespace CoachingFit.Identity.Infrastructure.Data.DataSeed
                 throw new InvalidOperationException(
                     $"Failed to seed admin: {string.Join(", ", result.Errors.Select(e => e.Description))}");
 
-            await _userManager.AddToRoleAsync(admin, nameof(UserRole.Admin));
+            await _userManager.AddToRoleAsync(admin, "Admin");
 
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(admin);
             await _userManager.ConfirmEmailAsync(admin, token);

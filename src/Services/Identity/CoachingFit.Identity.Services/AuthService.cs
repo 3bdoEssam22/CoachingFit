@@ -41,8 +41,7 @@ namespace CoachingFit.Identity.Services
                 Email = request.Email,
                 UserName = request.Email,
                 PhoneNumber = request.PhoneNumber,
-                IsActive = false,
-                UserRole = UserRole.Coach
+                IsActive = false
             };
 
             var result = await _userManager.CreateAsync(user, request.Password);
@@ -95,8 +94,7 @@ namespace CoachingFit.Identity.Services
                 LastName = request.LastName,
                 Email = request.Email,
                 UserName = request.Email,
-                IsActive = true,
-                UserRole = UserRole.Trainee
+                IsActive = true
             };
 
             var result = await _userManager.CreateAsync(user, request.Password);
@@ -152,13 +150,6 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            // Check lockout
-            if (await _userManager.IsLockedOutAsync(user))
-            {
-                response.StatusCode = StatusCodes.Status403Forbidden;
-                response.Message = "Account temporarily locked. Try again later.";
-                return response;
-            }
 
             // Check password
             if (!await _userManager.CheckPasswordAsync(user, request.Password))
@@ -179,15 +170,17 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            if (!user.IsActive)
+            // Check lockout
+            if (await _userManager.IsLockedOutAsync(user))
             {
                 response.StatusCode = StatusCodes.Status403Forbidden;
-                response.Message = "Your account is not yet activated. Please wait for admin approval.";
+                response.Message = "Account temporarily locked. Try again later.";
                 return response;
             }
 
             // All checks passed — generate token
-            var role = user.UserRole.ToString();
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? nameof(UserRole.Trainee);
             var (token, expiresAt) = _jwtService.GenerateToken(user, role);
 
             response.StatusCode = StatusCodes.Status200OK;
@@ -216,7 +209,8 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            var role = user.UserRole.ToString();
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? nameof(UserRole.Trainee);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "User retrieved successfully.";
