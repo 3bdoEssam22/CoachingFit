@@ -12,4 +12,12 @@
     <Project Path="src/Services/Identity/CoachingFit.Identity.Services/CoachingFit.Identity.Services.csproj" />
     <Project Path="src/Services/Identity/CoachingFit.Identity.Shared/CoachingFit.Identity.Shared.csproj" />
   </Folder>
+  <Folder Name="/src/Services/User/">
+    <Project Path="src/Services/User/CoachingFit.User.API/CoachingFit.User.API.csproj" Id="ff43a5c3-6bed-48a1-a42b-f131a75a1343" />
+    <Project Path="src/Services/User/CoachingFit.User.Core/CoachingFit.User.Core.csproj" Id="e4f3aa96-16f6-42a8-bdd7-3bfab18e533d" />
+    <Project Path="src/Services/User/CoachingFit.User.Infrastructure/CoachingFit.User.Infrastructure.csproj" Id="7a451ee3-bd59-4101-bf45-eb6af17695d2" />
+    <Project Path="src/Services/User/CoachingFit.User.Services.Abstraction/CoachingFit.User.Services.Abstraction.csproj" Id="06ed8615-1f3a-4099-bb34-9dc8bc02d491" />
+    <Project Path="src/Services/User/CoachingFit.User.Services/CoachingFit.User.Services.csproj" Id="4dd60413-db9e-4748-bf4e-bd3c05855da4" />
+    <Project Path="src/Services/User/CoachingFit.User.Shared/CoachingFit.User.Shared.csproj" Id="dac76d64-f953-4f1a-93b7-0f6d6a62bb5e" />
+  </Folder>
 </Solution>

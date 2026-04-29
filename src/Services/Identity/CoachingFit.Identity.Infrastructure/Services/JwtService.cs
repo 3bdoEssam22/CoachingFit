@@ -18,6 +18,7 @@ namespace CoachingFit.Identity.Infrastructure.Services
             var claims = new List<Claim>
             {
                 new(JwtRegisteredClaimNames.Sub,        user.Id),
+                new(ClaimTypes.NameIdentifier,          user.Id),
                 new(JwtRegisteredClaimNames.Email,      user.Email!),
                 new(JwtRegisteredClaimNames.GivenName,  user.FirstName),
                 new(JwtRegisteredClaimNames.FamilyName, user.LastName),

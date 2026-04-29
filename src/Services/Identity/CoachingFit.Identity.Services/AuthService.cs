@@ -8,6 +8,7 @@ using CoachingFit.Identity.Shared.Wrappers;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace CoachingFit.Identity.Services
 {
@@ -15,11 +16,13 @@ namespace CoachingFit.Identity.Services
         UserManager<ApplicationUser> _userManager,
         IJwtService _jwtService,
         IEmailService _emailService,
+        ILogger<AuthService> _logger,
         IValidator<RegisterCoachRequest> _registerCoachValidator,
         IValidator<RegisterTraineeRequest> _registerTraineeValidator,
         IValidator<LoginRequest> _loginValidator) : IAuthService
     {
-        public async Task<GenericResponse<AuthResponse>> RegisterCoachAsync(RegisterCoachRequest request)
+        public async Task<GenericResponse<AuthResponse>> RegisterCoachAsync(
+            RegisterCoachRequest request, string baseUrl)
         {
             var response = new GenericResponse<AuthResponse>();
 
@@ -49,31 +52,21 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            await _userManager.AddToRoleAsync(user, nameof(UserRole.Coach));
-
-            // Confirm coach email automatically
-            // (coach doesn't need email confirmation — admin verifies credentials instead)
-            var confirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            await _userManager.ConfirmEmailAsync(user, confirmToken);
-
-            // Send application received email
-            await _emailService.SendEmailAsync(new EmailMessage
+            var addToRoleResult = await _userManager.AddToRoleAsync(user, nameof(UserRole.Coach));
+            if (!addToRoleResult.Succeeded)
             {
-                To = user.Email!,
-                Subject = "CoachingFit — Application Received",
-                Body = $"""
-                          <h2>Hi {user.FirstName},</h2>
-                          <p>Thank you for applying to join CoachingFit as a coach!</p>
-                          <p>Your application is currently under review. Our team will verify 
-                          your credentials and activate your account shortly.</p>
-                          <p>You will receive another email once your account is activated.</p>
-                          <br/>
-                          <p>The CoachingFit Team</p>
-                          """
-            });
+                await _userManager.DeleteAsync(user);
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = string.Join(" | ", addToRoleResult.Errors.Select(e => e.Description));
+                return response;
+            }
 
-            response.StatusCode = StatusCodes.Status200OK;
-            response.Message = "Coach registered successfully. Waiting for admin approval.";
+            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl);
+
+            response.StatusCode = StatusCodes.Status201Created;
+            response.Message = emailSent
+                ? "Coach registered successfully. Please confirm your email."
+                : "Coach registered successfully, but we couldn't send the confirmation email. Please use the resend option.";
             response.Data = new AuthResponse
             {
                 UserId = user.Id,
@@ -83,7 +76,6 @@ namespace CoachingFit.Identity.Services
             };
             return response;
         }
-
         public async Task<GenericResponse<AuthResponse>> RegisterTraineeAsync(RegisterTraineeRequest request, string baseUrl)
         {
             var response = new GenericResponse<AuthResponse>();
@@ -113,12 +105,21 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            await _userManager.AddToRoleAsync(user, nameof(UserRole.Trainee));
+            var addToRoleResult = await _userManager.AddToRoleAsync(user, nameof(UserRole.Trainee));
+            if (!addToRoleResult.Succeeded)
+            {
+                await _userManager.DeleteAsync(user);
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = string.Join(" | ", addToRoleResult.Errors.Select(e => e.Description));
+                return response;
+            }
 
-            await SendConfirmationEmailAsync(user, baseUrl);
+            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl);
 
-            response.StatusCode = StatusCodes.Status200OK;
-            response.Message = "Trainee registered successfully.";
+            response.StatusCode = StatusCodes.Status201Created;
+            response.Message = emailSent
+                ? "Trainee registered successfully. Please confirm your email."
+                : "Trainee registered successfully, but we couldn't send the confirmation email. Please use the resend option.";
             response.Data = new AuthResponse
             {
                 UserId = user.Id,
@@ -149,34 +150,18 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            // Check password first
+
+            // Check password
             if (!await _userManager.CheckPasswordAsync(user, request.Password))
             {
-                // Only increment failed count if not already locked out
-                if (!await _userManager.IsLockedOutAsync(user))
-                    await _userManager.AccessFailedAsync(user);
-
+                await _userManager.AccessFailedAsync(user);
                 response.StatusCode = StatusCodes.Status401Unauthorized;
                 response.Message = "Invalid email or password.";
                 return response;
             }
 
-            // Password is correct — now check account status
+            // Password correct — reset failed count
             await _userManager.ResetAccessFailedCountAsync(user);
-
-            if (!user.IsActive)
-            {
-                response.StatusCode = StatusCodes.Status403Forbidden;
-                response.Message = "Your account is not active yet.";
-                return response;
-            }
-
-            if (await _userManager.IsLockedOutAsync(user))
-            {
-                response.StatusCode = StatusCodes.Status403Forbidden;
-                response.Message = "Account temporarily locked. Try again later.";
-                return response;
-            }
 
             if (!await _userManager.IsEmailConfirmedAsync(user))
             {
@@ -185,9 +170,17 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
+            // Check lockout
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                response.StatusCode = StatusCodes.Status403Forbidden;
+                response.Message = "Account temporarily locked. Try again later.";
+                return response;
+            }
+
             // All checks passed — generate token
             var roles = await _userManager.GetRolesAsync(user);
-            var role = roles.FirstOrDefault() ?? string.Empty;
+            var role = roles.FirstOrDefault() ?? nameof(UserRole.Trainee);
             var (token, expiresAt) = _jwtService.GenerateToken(user, role);
 
             response.StatusCode = StatusCodes.Status200OK;
@@ -217,7 +210,7 @@ namespace CoachingFit.Identity.Services
             }
 
             var roles = await _userManager.GetRolesAsync(user);
-            var role = roles.FirstOrDefault() ?? string.Empty;
+            var role = roles.FirstOrDefault() ?? nameof(UserRole.Trainee);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "User retrieved successfully.";
@@ -238,8 +231,8 @@ namespace CoachingFit.Identity.Services
             var user = await _userManager.FindByIdAsync(userId);
             if (user is null)
             {
-                response.StatusCode = StatusCodes.Status404NotFound;
-                response.Message = "User not found.";
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Message = "Invalid or expired confirmation link.";
                 return response;
             }
 
@@ -269,21 +262,23 @@ namespace CoachingFit.Identity.Services
             var response = new GenericResponse<bool>();
 
             var user = await _userManager.FindByEmailAsync(email);
-            if (user is null)
+            if (user is null || await _userManager.IsEmailConfirmedAsync(user))
             {
-                response.StatusCode = StatusCodes.Status404NotFound;
-                response.Message = "User not found.";
+                // Return success regardless to prevent email enumeration
+                response.StatusCode = StatusCodes.Status200OK;
+                response.Message = "If your account exists and email is unconfirmed, you will receive a confirmation email shortly.";
+                response.Data = true;
                 return response;
             }
 
-            if (await _userManager.IsEmailConfirmedAsync(user))
+            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl);
+
+            if (!emailSent)
             {
-                response.StatusCode = StatusCodes.Status400BadRequest;
-                response.Message = "Email is already confirmed.";
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = "Failed to send confirmation email. Please try again later.";
                 return response;
             }
-
-            await SendConfirmationEmailAsync(user, baseUrl);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Confirmation email resent successfully.";
@@ -328,18 +323,25 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            await _emailService.SendEmailAsync(new EmailMessage
+            try
             {
-                To = user.Email!,
-                Subject = "CoachingFit — Account Activated!",
-                Body = $"""
-                  <h2>Great news, {user.FirstName}!</h2>
-                  <p>Your CoachingFit coach account has been approved and activated.</p>
-                  <p>You can now log in and start building your coaching profile.</p>
-                  <br/>
-                  <p>The CoachingFit Team</p>
-                  """
-            });
+                await _emailService.SendEmailAsync(new EmailMessage
+                {
+                    To = user.Email!,
+                    Subject = "CoachingFit — Account Activated!",
+                    Body = $"""
+                      <h2>Great news, {user.FirstName}!</h2>
+                      <p>Your CoachingFit coach account has been approved and activated.</p>
+                      <p>You can now log in and start building your coaching profile.</p>
+                      <br/>
+                      <p>The CoachingFit Team</p>
+                      """
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send activation email to coach {CoachId}", coachId);
+            }
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Coach activated successfully.";
@@ -347,29 +349,54 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
-        // ── Private Helper ─────────────────────────────────────────────────────────
-        private async Task SendConfirmationEmailAsync(ApplicationUser user, string baseUrl)
+        public async Task<GenericResponse<IEnumerable<string>>> GetPendingCoachUserIdsAsync()
         {
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var encoded = Uri.EscapeDataString(token);
-            var link = $"{baseUrl}/api/Auth/confirm-email?userId={user.Id}&token={encoded}";
+            var response = new GenericResponse<IEnumerable<string>>();
 
-            await _emailService.SendEmailAsync(new EmailMessage
-            {
-                To = user.Email!,
-                Subject = "CoachingFit — Confirm Your Email",
-                Body = $"""
-                  <h2>Welcome to CoachingFit, {user.FirstName}!</h2>
-                  <p>Please confirm your email address by clicking the button below:</p>
-                  <a href="{link}"
-                     style="background:#1F4E79; color:white; padding:12px 24px;
-                            text-decoration:none; border-radius:6px;">
-                     Confirm Email
-                  </a>
-                  <p>If you didn't create an account, ignore this email.</p>
-                  <p>This link expires in 24 hours.</p>
-                  """
-            });
+            var coaches = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Coach));
+            var pendingIds = coaches
+                .Where(c => !c.IsActive)
+                .Select(c => c.Id);
+
+            response.StatusCode = StatusCodes.Status200OK;
+            response.Message = "Pending coach IDs retrieved successfully.";
+            response.Data = pendingIds;
+            return response;
         }
+
+        // ── Private Helpers ────────────────────────────────────────────────────────
+        private async Task<bool> TrySendConfirmationEmailAsync(ApplicationUser user, string baseUrl)
+        {
+            try
+            {
+                var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                var encoded = Uri.EscapeDataString(token);
+                var link = $"{baseUrl}/api/Auth/confirm-email?userId={user.Id}&token={encoded}";
+
+                await _emailService.SendEmailAsync(new EmailMessage
+                {
+                    To = user.Email!,
+                    Subject = "CoachingFit — Confirm Your Email",
+                    Body = $"""
+                      <h2>Welcome to CoachingFit, {user.FirstName}!</h2>
+                      <p>Please confirm your email address by clicking the button below:</p>
+                      <a href="{link}"
+                         style="background:#1F4E79; color:white; padding:12px 24px;
+                                text-decoration:none; border-radius:6px;">
+                         Confirm Email
+                      </a>
+                      <p>If you didn't create an account, ignore this email.</p>
+                      <p>This link expires in 24 hours.</p>
+                      """
+                });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send confirmation email to {Email}", user.Email);
+                return false;
+            }
+        }
+
     }
 }
