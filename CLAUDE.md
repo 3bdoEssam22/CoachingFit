@@ -48,12 +48,8 @@ Every endpoint returns `GenericResponse<T>`. This is the pattern. Do not suggest
 
 ## Identity Service — Current Design Decisions (NOT BUGS)
 
-### UserRole Property + Identity Roles (Dual Source)
-`ApplicationUser` has BOTH:
-- `public UserRole UserRole { get; set; }` — used for JWT generation and `GetCurrentUser`
-- ASP.NET Identity roles — used for `GetUsersInRoleAsync`, `IsInRoleAsync`
-
-Both are set together at registration. This is a **known trade-off** that simplifies token generation. The `UserRole` column EXISTS in the database via migration `20260427122805_AddingUserRoleColumnToUsersTable`. Do NOT suggest removing it or creating a migration to drop it.
+### Roles — ASP.NET Identity Only
+`ApplicationUser` has NO `UserRole` property. Roles come exclusively from ASP.NET Identity via `GetRolesAsync` / `IsInRoleAsync` / `GetUsersInRoleAsync`. The `UserRole` column was dropped in migration `20260510080000_DropUserRoleColumn`.
 
 ### IsActive Check in Login
 `IsActive` IS checked in `LoginAsync`. It returns 403 for inactive accounts. Read `AuthService.cs` before claiming otherwise.
@@ -66,7 +62,7 @@ The actual order in `AuthService.LoginAsync` is:
 3. Password correct? → AccessFailedAsync + 401 if wrong
 4. ResetAccessFailedCount
 5. EmailConfirmed? → 401
-6. IsActive? → 403
+6. IsActive? → 403 "Your account is not yet activated. Please wait for admin approval."
 7. Generate token
 ```
 This is the intended order. Do NOT suggest reordering.
@@ -216,6 +212,66 @@ Register → Confirm Email → Login → Create Profile → Browse Coaches → P
 - Trainee Flutter App
 - Catalog Service, Order Service, Plan Service, etc.
 - RabbitMQ + MassTransit, gRPC, Hangfire, Docker, PayMob, SignalR
+
+---
+
+## Business Rules — For Future Services (Catalog, Order, Plan, Wallet)
+
+These are product decisions baked into the domain. Encode them as you build the relevant service; do not redesign them.
+
+### Commission
+- Admin sets commission % per coach (not platform-wide flat rate)
+- Charged on the original purchase amount, not net
+
+### Refund
+- 14-day refund window from purchase
+- 80% refund to trainee, 20% kept by platform, **0% to coach**
+- Requires admin approval
+
+### Plans
+- One active plan per trainee at a time
+- One-time purchase (not subscription)
+- Coach explicitly accepts or rejects each plan request
+- 4 weeks duration
+
+### Payout
+- 30-day hold after plan completion before coach can withdraw
+- Coach receives 80% of sale price minus the configured commission
+
+### Data Retention
+- Plans: 4 weeks after completion
+- Messages: 90 days after plan end
+- Photos: deleted when plan ends
+- Payments: 7+ years (legal/tax)
+
+---
+
+## Gateway Ports
+- `5000` — HTTP (used by Flutter apps via `10.0.2.2:5000` on Android emulator)
+- `5001` — HTTPS
+- The gateway does **not** validate JWT — every downstream service validates independently
+
+---
+
+## User Secrets Layout
+**Identity Service**
+```json
+{
+  "ConnectionStrings": { "DefaultConnection": "..." },
+  "Jwt": { "Key": "..." },
+  "Seeding": { "AdminEmail": "...", "AdminPassword": "..." },
+  "EmailSettings": { "Email": "...", "Password": "..." }
+}
+```
+**User Service**
+```json
+{
+  "ConnectionStrings": { "DefaultConnection": "..." },
+  "Jwt": { "Key": "..." },
+  "Cloudinary": { "CloudName": "...", "ApiKey": "...", "ApiSecret": "..." }
+}
+```
+`Jwt:Key` must be **identical** across all services. Never put secrets in `appsettings.json`.
 
 ---
 

@@ -150,8 +150,13 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                response.StatusCode = StatusCodes.Status403Forbidden;
+                response.Message = "Account temporarily locked. Try again later.";
+                return response;
+            }
 
-            // Check password
             if (!await _userManager.CheckPasswordAsync(user, request.Password))
             {
                 await _userManager.AccessFailedAsync(user);
@@ -160,7 +165,6 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            // Password correct — reset failed count
             await _userManager.ResetAccessFailedCountAsync(user);
 
             if (!await _userManager.IsEmailConfirmedAsync(user))
@@ -170,15 +174,13 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            // Check lockout
-            if (await _userManager.IsLockedOutAsync(user))
+            if (!user.IsActive)
             {
                 response.StatusCode = StatusCodes.Status403Forbidden;
-                response.Message = "Account temporarily locked. Try again later.";
+                response.Message = "Your account is not yet activated. Please wait for admin approval.";
                 return response;
             }
 
-            // All checks passed — generate token
             var roles = await _userManager.GetRolesAsync(user);
             var role = roles.FirstOrDefault() ?? nameof(UserRole.Trainee);
             var (token, expiresAt) = _jwtService.GenerateToken(user, role);
