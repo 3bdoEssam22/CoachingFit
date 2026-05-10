@@ -72,7 +72,8 @@ namespace CoachingFit.Identity.Services
                 UserId = user.Id,
                 Email = user.Email!,
                 FullName = user.FullName,
-                Role = nameof(UserRole.Coach)
+                Role = nameof(UserRole.Coach),
+                IsActive = false
             };
             return response;
         }
@@ -126,6 +127,7 @@ namespace CoachingFit.Identity.Services
                 Email = user.Email!,
                 FullName = user.FullName,
                 Role = nameof(UserRole.Trainee),
+                IsActive = true
             };
             return response;
         }
@@ -193,6 +195,7 @@ namespace CoachingFit.Identity.Services
                 Email = user.Email!,
                 FullName = user.FullName,
                 Role = role,
+                IsActive = user.IsActive,
                 Token = token,
                 ExpiresAt = expiresAt
             };
@@ -221,7 +224,8 @@ namespace CoachingFit.Identity.Services
                 UserId = user.Id,
                 Email = user.Email!,
                 FullName = user.FullName,
-                Role = role
+                Role = role,
+                IsActive = user.IsActive
             };
             return response;
         }
@@ -274,16 +278,11 @@ namespace CoachingFit.Identity.Services
             }
 
             var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl);
-
             if (!emailSent)
-            {
-                response.StatusCode = StatusCodes.Status500InternalServerError;
-                response.Message = "Failed to send confirmation email. Please try again later.";
-                return response;
-            }
+                _logger.LogWarning("ResendConfirmation: email delivery failed for {Email}", user.Email);
 
             response.StatusCode = StatusCodes.Status200OK;
-            response.Message = "Confirmation email resent successfully.";
+            response.Message = "If your account exists and email is unconfirmed, you will receive a confirmation email shortly.";
             response.Data = true;
             return response;
         }

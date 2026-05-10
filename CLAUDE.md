@@ -78,11 +78,6 @@ We store only `SecureUrl`. Old photos are orphaned on replacement. This is a kno
 
 ---
 
-## Known Issue to Fix
-
-### ResendConfirmationEmailAsync — Information Leakage
-**This IS a real bug.** The method returns 200 for unknown/confirmed users but returns 500 when email sending fails for a real unconfirmed user. An attacker can distinguish the two via status code. Fix: return 200 regardless, log the failure internally.
-
 ---
 
 ## File Locations
