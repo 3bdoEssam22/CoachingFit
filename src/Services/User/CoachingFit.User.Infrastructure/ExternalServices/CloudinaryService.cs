@@ -35,5 +35,43 @@ namespace CoachingFit.User.Infrastructure.ExternalServices
 
             return result.SecureUrl.ToString();
         }
+
+        public async Task<(string Url, string FileType)> UploadCertificateAsync(IFormFile file)
+        {
+            await using var stream = file.OpenReadStream();
+
+            if (file.ContentType == "application/pdf")
+            {
+                var uploadParams = new RawUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream),
+                    Folder = "coachingfit/certificates"
+                };
+
+                var result = await _cloudinary.UploadAsync(uploadParams);
+
+                if (result.Error is not null)
+                    throw new InvalidOperationException(
+                        $"Cloudinary upload failed: {result.Error.Message}");
+
+                return (result.SecureUrl.ToString(), "pdf");
+            }
+            else
+            {
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, stream),
+                    Folder = "coachingfit/certificates"
+                };
+
+                var result = await _cloudinary.UploadAsync(uploadParams);
+
+                if (result.Error is not null)
+                    throw new InvalidOperationException(
+                        $"Cloudinary upload failed: {result.Error.Message}");
+
+                return (result.SecureUrl.ToString(), "image");
+            }
+        }
     }
 }

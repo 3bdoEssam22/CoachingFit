@@ -33,6 +33,7 @@ namespace CoachingFit.User.Infrastructure.Extensions
             // Services
             services.AddScoped<ICoachProfileService, CoachProfileService>();
             services.AddScoped<ITraineeProfileService, TraineeProfileService>();
+            services.AddScoped<ICoachCertificateService, CoachCertificateService>();
 
             // FluentValidation
             services.AddValidatorsFromAssemblyContaining<CreateCoachProfileValidator>();

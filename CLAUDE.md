@@ -12,8 +12,9 @@ You are reviewing and working on **CoachingFit**, a commission-based fitness mar
 ### Sprint 1 — Identity Service (port 7272) ✅ COMPLETE
 ### Sprint 2 — API Gateway / YARP (port 5001) ✅ COMPLETE
 ### Sprint 3 — User Service (port 7024) ✅ COMPLETE
+### Sprint 4 — Coach Certificates (User Service) ✅ COMPLETE
 
-All three sprints are merged and tested. The backend is stable.
+All sprints are merged and tested. The backend is stable.
 
 ---
 
@@ -175,13 +176,25 @@ CoachingFit.sln
 | GET | `/api/TraineeProfile/{id}` | ✅ Coach | Get trainee by ID |
 | PUT | `/api/TraineeProfile` | ✅ Trainee | Update profile (multipart/form-data) |
 
+### User Service — `/api/CoachCertificate`
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| POST | `/api/CoachCertificate` | ✅ Coach | Upload certificate (multipart/form-data) |
+| GET | `/api/CoachCertificate/me` | ✅ Coach | Get my certificates |
+| GET | `/api/CoachCertificate/{id}` | ✅ Coach | Get certificate by ID (own only) |
+| DELETE | `/api/CoachCertificate/{id}` | ✅ Coach | Delete pending/rejected certificate |
+| GET | `/api/CoachCertificate/pending` | ✅ Admin | Get all pending certificates |
+| GET | `/api/CoachCertificate/coach/{userId}` | ✅ Admin | Get all certs for a coach |
+| PUT | `/api/CoachCertificate/{id}/approve` | ✅ Admin | Approve certificate |
+| PUT | `/api/CoachCertificate/{id}/reject` | ✅ Admin | Reject with reason (JSON body) |
+
 ---
 
 ## Business Rules
 
 ### Coach Lifecycle
 ```
-Register → Confirm Email → Login → Create Profile → Admin Reviews → Activates → Goes Live in Catalog
+Register → Confirm Email → Login → Create Profile → Upload Certificates → Admin Reviews → Activates → Goes Live in Catalog
 ```
 
 ### Trainee Lifecycle
@@ -196,6 +209,10 @@ Register → Confirm Email → Login → Create Profile → Browse Coaches → P
 - Lockout: 5 failed attempts → 15-minute lock
 - Photos: optional, max 5MB, jpg/png/webp only, Cloudinary face-crop 400×400
 - On profile update: no photo sent = existing photo URL preserved
+- Certificates: max 10MB, pdf/jpg/png/webp, stored in `coachingfit/certificates/` on Cloudinary (no face-crop)
+- Certificate statuses: `Pending (0)`, `Approved (1)`, `Rejected (2)` stored as int
+- Coach can delete only Pending or Rejected certificates (not Approved)
+- Activation gate: admin decides independently — no code enforcement requiring certs before activation
 - `ResendConfirmation` always returns 200 (anti-enumeration — except bug #4 above)
 - Registration returns 201 Created
 
