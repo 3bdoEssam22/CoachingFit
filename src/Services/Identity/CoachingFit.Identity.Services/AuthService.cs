@@ -176,13 +176,6 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            if (!user.IsActive)
-            {
-                response.StatusCode = StatusCodes.Status403Forbidden;
-                response.Message = "Your account is not yet activated. Please wait for admin approval.";
-                return response;
-            }
-
             var roles = await _userManager.GetRolesAsync(user);
             var role = roles.FirstOrDefault() ?? nameof(UserRole.Trainee);
             var (token, expiresAt) = _jwtService.GenerateToken(user, role);

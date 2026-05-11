@@ -14,7 +14,6 @@ namespace CoachingFit.Gateway
 
             var app = builder.Build();
 
-            app.UseHttpsRedirection();
             app.MapHealthChecks("/health");
             app.MapReverseProxy();
 
