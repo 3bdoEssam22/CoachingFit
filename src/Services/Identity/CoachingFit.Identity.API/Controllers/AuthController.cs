@@ -4,34 +4,35 @@ using CoachingFit.Identity.Shared.DTOs.Responses;
 using CoachingFit.Identity.Shared.Wrappers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace CoachingFit.Identity.API.Controllers
 {
-    public class AuthController(IAuthService _authService) : BaseApiController
+    public class AuthController(IAuthService _authService, IConfiguration _config) : BaseApiController
     {
-        private string GetBaseUrl() => $"{Request.Scheme}://{Request.Host}";
-
-
         // POST api/Auth/register/coach
+        [EnableRateLimiting("auth-limit")]
         [HttpPost("register/coach")]
         public async Task<ActionResult<GenericResponse<AuthResponse>>> RegisterCoach(
             [FromBody] RegisterCoachRequest request)
         {
-            var result = await _authService.RegisterCoachAsync(request, GetBaseUrl());
+            var result = await _authService.RegisterCoachAsync(request, _config["App:BaseUrl"]!);
             return HandleResponse(result);
         }
 
         // POST api/Auth/register/trainee
+        [EnableRateLimiting("auth-limit")]
         [HttpPost("register/trainee")]
         public async Task<ActionResult<GenericResponse<AuthResponse>>> RegisterTrainee(
             [FromBody] RegisterTraineeRequest request)
         {
-            var result = await _authService.RegisterTraineeAsync(request, GetBaseUrl());
+            var result = await _authService.RegisterTraineeAsync(request, _config["App:BaseUrl"]!);
             return HandleResponse(result);
         }
 
         // POST api/Auth/login
+        [EnableRateLimiting("auth-limit")]
         [HttpPost("login")]
         public async Task<ActionResult<GenericResponse<AuthResponse>>> Login(
             [FromBody] LoginRequest request)
@@ -64,11 +65,12 @@ namespace CoachingFit.Identity.API.Controllers
         }
 
         // POST api/Auth/resend-confirmation?email=
+        [EnableRateLimiting("auth-limit")]
         [HttpPost("resend-confirmation")]
         public async Task<ActionResult<GenericResponse<bool>>> ResendConfirmation(
             [FromQuery] string email)
         {
-            var result = await _authService.ResendConfirmationEmailAsync(email, GetBaseUrl());
+            var result = await _authService.ResendConfirmationEmailAsync(email, _config["App:BaseUrl"]!);
             return HandleResponse(result);
         }
 

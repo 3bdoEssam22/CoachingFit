@@ -273,7 +273,7 @@ namespace CoachingFit.Identity.Services
 
             var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl);
             if (!emailSent)
-                _logger.LogWarning("ResendConfirmation: email delivery failed for {Email}", user.Email);
+                _logger.LogWarning("ResendConfirmation: email delivery failed for user {UserId}", user.Id);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "If your account exists and email is unconfirmed, you will receive a confirmation email shortly.";
@@ -404,7 +404,7 @@ namespace CoachingFit.Identity.Services
                                           or TimeoutException
                                           or MimeKit.ParseException)
             {
-                _logger.LogError(ex, "Failed to send confirmation email to {Email}", user.Email);
+                _logger.LogError(ex, "Failed to send confirmation email for user {UserId}", user.Id);
                 return false;
             }
         }

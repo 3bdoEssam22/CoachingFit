@@ -257,6 +257,17 @@ These are product decisions baked into the domain. Encode them as you build the 
 
 ---
 
+## Production Deployment Checklist
+
+These values are empty/wildcard in `appsettings.json` (dev-safe defaults). Before any production or staging deploy, set these:
+
+- `AllowedHosts` — set to the real public domain(s) in `appsettings.Production.json` or the `AllowedHosts` environment variable (e.g. `"api.coachingfit.com"`). Never leave `"*"` in production.
+- `App:BaseUrl` — the publicly reachable URL of the Identity API (e.g. `"https://api.coachingfit.com"`). Used to build the email-confirmation link; must **not** be derived from the `Host` request header.
+- `App:AllowedOrigins` — array of browser origins permitted to call the APIs (e.g. `["https://admin.coachingfit.com"]`). Populated when the Admin Dashboard domain is known. In Dev this is ignored (all origins allowed).
+- `Jwt:Key` — must be ≥ 32 bytes (256 bits). Both services validate at startup and refuse to start with a missing or too-short key.
+
+---
+
 ## Gateway Ports
 - `5000` — HTTP (used by Flutter apps via `10.0.2.2:5000` on Android emulator)
 - `5001` — HTTPS

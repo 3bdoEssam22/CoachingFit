@@ -1,6 +1,7 @@
 using CoachingFit.User.API.Extensions;
 using CoachingFit.User.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text.Json.Serialization;
@@ -21,6 +22,29 @@ namespace CoachingFit.User.API
                 {
                     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
                 });
+
+            // Forwarded headers — honours X-Forwarded-For from YARP gateway so metrics/logging see real client IP
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
+
+            // CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("WebClients", policy =>
+                {
+                    if (builder.Environment.IsDevelopment())
+                        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+                    else
+                        policy.WithOrigins(
+                                builder.Configuration.GetSection("App:AllowedOrigins").Get<string[]>() ?? [])
+                            .AllowAnyHeader()
+                            .WithMethods("GET", "POST", "PUT", "DELETE");
+                });
+            });
 
             #region Swagger
             builder.Services.AddEndpointsApiExplorer();
@@ -45,7 +69,12 @@ namespace CoachingFit.User.API
             // Infrastructure (DbContext + services + validators)
             builder.Services.AddInfrastructure(builder.Configuration);
 
-            // JWT Authentication
+            // JWT Authentication — fail fast if key is absent or too short
+            var jwtKey = builder.Configuration["Jwt:Key"]
+                ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+            if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+                throw new InvalidOperationException("Jwt:Key must be at least 32 bytes (256 bits).");
+
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -62,8 +91,7 @@ namespace CoachingFit.User.API
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = builder.Configuration["Jwt:Issuer"],
                     ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
                 };
             });
 
@@ -73,13 +101,20 @@ namespace CoachingFit.User.API
 
             await app.MigrateDatabaseAsync();
 
+            app.UseForwardedHeaders();
+
+            if (!app.Environment.IsDevelopment())
+                app.UseHsts();
+
+            app.UseHttpsRedirection();
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
+            app.UseCors("WebClients");
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
