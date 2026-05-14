@@ -53,7 +53,7 @@ Every endpoint returns `GenericResponse<T>`. This is the pattern. Do not suggest
 `ApplicationUser` has NO `UserRole` property. Roles come exclusively from ASP.NET Identity via `GetRolesAsync` / `IsInRoleAsync` / `GetUsersInRoleAsync`. The `UserRole` column was dropped in migration `20260510080000_DropUserRoleColumn`.
 
 ### IsActive Check in Login
-`IsActive` IS checked in `LoginAsync`. It returns 403 for inactive accounts. Read `AuthService.cs` before claiming otherwise.
+`IsActive` is **NOT** checked during login. Inactive coaches receive a valid JWT. The `isActive` field is returned in `AuthResponse` and the Flutter app uses it to route to `/pending-approval`. This is intentional — coaches need a token to reach the pending screen and upload certificates during the approval flow.
 
 ### Login Gate Order
 The actual order in `AuthService.LoginAsync` is:
@@ -63,16 +63,15 @@ The actual order in `AuthService.LoginAsync` is:
 3. Password correct? → AccessFailedAsync + 401 if wrong
 4. ResetAccessFailedCount
 5. EmailConfirmed? → 401
-6. IsActive? → 403 "Your account is not yet activated. Please wait for admin approval."
-7. Generate token
+6. Generate token (isActive returned in payload, not enforced here)
 ```
-This is the intended order. Do NOT suggest reordering.
+This is the intended order. Do NOT suggest reordering or re-adding an IsActive gate here.
 
 ### JWT — 30-Day Tokens, No Refresh
 This is a deliberate MVP decision. We are aware of the revocation limitation. It will be addressed when Wallet/Payment services are built. Do NOT flag this as a bug.
 
 ### Email — TrySendConfirmationEmailAsync
-Returns `bool`, never throws. Email failure does not fail registration — this is intentional graceful degradation.
+Returns `bool`. Catches known SMTP / network / mime-parse failures (MailKit `ServiceNotConnectedException`, `ServiceNotAuthenticatedException`, `AuthenticationException`, `SmtpCommandException`, `SmtpProtocolException`, plus `SocketException`, `IOException`, `TimeoutException`, `MimeKit.ParseException`) and returns `false` so registration still succeeds (graceful degradation). Unexpected exceptions (programming bugs) bubble up — this is intentional so real defects aren't silently swallowed. The activation email send in `ActivateCoachAsync` follows the same narrowed-catch pattern.
 
 ### Cloudinary — No public_id Persistence
 We store only `SecureUrl`. Old photos are orphaned on replacement. This is a known deferral, not a bug. It will be addressed later.
@@ -205,7 +204,7 @@ Register → Confirm Email → Login → Create Profile → Browse Coaches → P
 ### Key Rules
 - Coach registers with `IsActive = false`, trainee with `IsActive = true`
 - Both must confirm email before login
-- `IsActive = false` returns 403 on login
+- `IsActive = false` does NOT block login — a token is issued; the app routes to the pending screen based on `isActive` in the response
 - Lockout: 5 failed attempts → 15-minute lock
 - Photos: optional, max 5MB, jpg/png/webp only, Cloudinary face-crop 400×400
 - On profile update: no photo sent = existing photo URL preserved
@@ -213,7 +212,7 @@ Register → Confirm Email → Login → Create Profile → Browse Coaches → P
 - Certificate statuses: `Pending (0)`, `Approved (1)`, `Rejected (2)` stored as int
 - Coach can delete only Pending or Rejected certificates (not Approved)
 - Activation gate: admin decides independently — no code enforcement requiring certs before activation
-- `ResendConfirmation` always returns 200 (anti-enumeration — except bug #4 above)
+- `ResendConfirmation` always returns 200 (anti-enumeration)
 - Registration returns 201 Created
 
 ---

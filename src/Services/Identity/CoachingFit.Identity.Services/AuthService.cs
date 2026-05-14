@@ -19,7 +19,8 @@ namespace CoachingFit.Identity.Services
         ILogger<AuthService> _logger,
         IValidator<RegisterCoachRequest> _registerCoachValidator,
         IValidator<RegisterTraineeRequest> _registerTraineeValidator,
-        IValidator<LoginRequest> _loginValidator) : IAuthService
+        IValidator<LoginRequest> _loginValidator,
+        TimeProvider _timeProvider) : IAuthService
     {
         public async Task<GenericResponse<AuthResponse>> RegisterCoachAsync(
             RegisterCoachRequest request, string baseUrl)
@@ -307,7 +308,7 @@ namespace CoachingFit.Identity.Services
             }
 
             user.IsActive = true;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
@@ -332,7 +333,15 @@ namespace CoachingFit.Identity.Services
                       """
                 });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is MailKit.ServiceNotConnectedException
+                                          or MailKit.ServiceNotAuthenticatedException
+                                          or MailKit.Security.AuthenticationException
+                                          or MailKit.Net.Smtp.SmtpCommandException
+                                          or MailKit.Net.Smtp.SmtpProtocolException
+                                          or System.Net.Sockets.SocketException
+                                          or System.IO.IOException
+                                          or TimeoutException
+                                          or MimeKit.ParseException)
             {
                 _logger.LogError(ex, "Failed to send activation email to coach {CoachId}", coachId);
             }
@@ -385,7 +394,15 @@ namespace CoachingFit.Identity.Services
                 });
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is MailKit.ServiceNotConnectedException
+                                          or MailKit.ServiceNotAuthenticatedException
+                                          or MailKit.Security.AuthenticationException
+                                          or MailKit.Net.Smtp.SmtpCommandException
+                                          or MailKit.Net.Smtp.SmtpProtocolException
+                                          or System.Net.Sockets.SocketException
+                                          or System.IO.IOException
+                                          or TimeoutException
+                                          or MimeKit.ParseException)
             {
                 _logger.LogError(ex, "Failed to send confirmation email to {Email}", user.Email);
                 return false;

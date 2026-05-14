@@ -43,6 +43,7 @@ namespace CoachingFit.Identity.Infrastructure.Extensions
             .AddDefaultTokenProviders();
 
             // Services
+            services.AddSingleton(TimeProvider.System);
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IDataInitializer, DataInitializer>();
 
