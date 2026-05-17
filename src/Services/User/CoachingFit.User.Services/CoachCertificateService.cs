@@ -20,11 +20,11 @@ namespace CoachingFit.User.Services
         IValidator<RejectCertificateRequest> _rejectValidator) : ICoachCertificateService
     {
         public async Task<GenericResponse<CertificateResponse>> UploadAsync(
-            UploadCertificateRequest request, string userId)
+            UploadCertificateRequest request, string userId, CancellationToken ct = default)
         {
             var response = new GenericResponse<CertificateResponse>();
 
-            var validation = await _uploadValidator.ValidateAsync(request);
+            var validation = await _uploadValidator.ValidateAsync(request, ct);
             if (!validation.IsValid)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -33,7 +33,7 @@ namespace CoachingFit.User.Services
             }
 
             var profile = await _context.CoachProfiles
-                .FirstOrDefaultAsync(c => c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.UserId == userId, ct);
             if (profile is null)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -45,7 +45,7 @@ namespace CoachingFit.User.Services
             string fileType;
             try
             {
-                (fileUrl, fileType) = await _cloudinaryService.UploadCertificateAsync(request.File);
+                (fileUrl, fileType) = await _cloudinaryService.UploadCertificateAsync(request.File, ct);
             }
             catch (Exception ex)
             {
@@ -68,8 +68,8 @@ namespace CoachingFit.User.Services
                 Status = CertificateStatus.Pending
             };
 
-            await _context.AddCoachCertificateAsync(certificate);
-            await _context.SaveChangesAsync();
+            await _context.AddCoachCertificateAsync(certificate, ct);
+            await _context.SaveChangesAsync(ct);
 
             response.StatusCode = StatusCodes.Status201Created;
             response.Message = "Certificate uploaded successfully. Admin will review it shortly.";
@@ -77,12 +77,12 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<IEnumerable<CertificateResponse>>> GetMyCertificatesAsync(string userId)
+        public async Task<GenericResponse<IEnumerable<CertificateResponse>>> GetMyCertificatesAsync(string userId, CancellationToken ct = default)
         {
             var response = new GenericResponse<IEnumerable<CertificateResponse>>();
 
             var profile = await _context.CoachProfiles
-                .FirstOrDefaultAsync(c => c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.UserId == userId, ct);
             if (profile is null)
             {
                 response.StatusCode = StatusCodes.Status404NotFound;
@@ -93,7 +93,7 @@ namespace CoachingFit.User.Services
             var certificates = await _context.CoachCertificates
                 .Where(c => c.CoachProfileId == profile.Id)
                 .OrderByDescending(c => c.CreatedAt)
-                .ToListAsync();
+                .ToListAsync(ct);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Certificates retrieved successfully.";
@@ -101,13 +101,13 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<CertificateResponse>> GetByIdAsync(Guid id, string userId)
+        public async Task<GenericResponse<CertificateResponse>> GetByIdAsync(Guid id, string userId, CancellationToken ct = default)
         {
             var response = new GenericResponse<CertificateResponse>();
 
             var certificate = await _context.CoachCertificates
                 .Include(c => c.CoachProfile)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id, ct);
 
             if (certificate is null)
             {
@@ -129,13 +129,13 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<bool>> DeleteAsync(Guid id, string userId)
+        public async Task<GenericResponse<bool>> DeleteAsync(Guid id, string userId, CancellationToken ct = default)
         {
             var response = new GenericResponse<bool>();
 
             var certificate = await _context.CoachCertificates
                 .Include(c => c.CoachProfile)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id, ct);
 
             if (certificate is null)
             {
@@ -159,7 +159,7 @@ namespace CoachingFit.User.Services
             }
 
             _context.RemoveCoachCertificate(certificate);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Certificate deleted successfully.";
@@ -167,7 +167,7 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<IEnumerable<AdminCertificateResponse>>> GetPendingAsync()
+        public async Task<GenericResponse<IEnumerable<AdminCertificateResponse>>> GetPendingAsync(CancellationToken ct = default)
         {
             var response = new GenericResponse<IEnumerable<AdminCertificateResponse>>();
 
@@ -175,7 +175,7 @@ namespace CoachingFit.User.Services
                 .Include(c => c.CoachProfile)
                 .Where(c => c.Status == CertificateStatus.Pending)
                 .OrderBy(c => c.CreatedAt)
-                .ToListAsync();
+                .ToListAsync(ct);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Pending certificates retrieved successfully.";
@@ -183,12 +183,12 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<IEnumerable<AdminCertificateResponse>>> GetByCoachUserIdAsync(string coachUserId)
+        public async Task<GenericResponse<IEnumerable<AdminCertificateResponse>>> GetByCoachUserIdAsync(string coachUserId, CancellationToken ct = default)
         {
             var response = new GenericResponse<IEnumerable<AdminCertificateResponse>>();
 
             var profile = await _context.CoachProfiles
-                .FirstOrDefaultAsync(c => c.UserId == coachUserId);
+                .FirstOrDefaultAsync(c => c.UserId == coachUserId, ct);
             if (profile is null)
             {
                 response.StatusCode = StatusCodes.Status404NotFound;
@@ -200,7 +200,7 @@ namespace CoachingFit.User.Services
                 .Include(c => c.CoachProfile)
                 .Where(c => c.CoachProfileId == profile.Id)
                 .OrderByDescending(c => c.CreatedAt)
-                .ToListAsync();
+                .ToListAsync(ct);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Coach certificates retrieved successfully.";
@@ -208,11 +208,11 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<bool>> ApproveAsync(Guid id, string adminId)
+        public async Task<GenericResponse<bool>> ApproveAsync(Guid id, string adminId, CancellationToken ct = default)
         {
             var response = new GenericResponse<bool>();
 
-            var certificate = await _context.FindCoachCertificateAsync(id);
+            var certificate = await _context.FindCoachCertificateAsync(id, ct);
             if (certificate is null)
             {
                 response.StatusCode = StatusCodes.Status404NotFound;
@@ -234,7 +234,7 @@ namespace CoachingFit.User.Services
             certificate.UpdatedAt = DateTime.UtcNow;
 
             _context.UpdateCoachCertificate(certificate);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Certificate approved successfully.";
@@ -242,11 +242,11 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<bool>> RejectAsync(Guid id, string adminId, RejectCertificateRequest request)
+        public async Task<GenericResponse<bool>> RejectAsync(Guid id, string adminId, RejectCertificateRequest request, CancellationToken ct = default)
         {
             var response = new GenericResponse<bool>();
 
-            var validation = await _rejectValidator.ValidateAsync(request);
+            var validation = await _rejectValidator.ValidateAsync(request, ct);
             if (!validation.IsValid)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -254,7 +254,7 @@ namespace CoachingFit.User.Services
                 return response;
             }
 
-            var certificate = await _context.FindCoachCertificateAsync(id);
+            var certificate = await _context.FindCoachCertificateAsync(id, ct);
             if (certificate is null)
             {
                 response.StatusCode = StatusCodes.Status404NotFound;
@@ -276,7 +276,7 @@ namespace CoachingFit.User.Services
             certificate.UpdatedAt = DateTime.UtcNow;
 
             _context.UpdateCoachCertificate(certificate);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Certificate rejected.";

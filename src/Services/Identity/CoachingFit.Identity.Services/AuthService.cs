@@ -20,14 +20,15 @@ namespace CoachingFit.Identity.Services
         IValidator<RegisterCoachRequest> _registerCoachValidator,
         IValidator<RegisterTraineeRequest> _registerTraineeValidator,
         IValidator<LoginRequest> _loginValidator,
-        TimeProvider _timeProvider) : IAuthService
+        TimeProvider _timeProvider,
+        IRefreshTokenService _refreshTokens) : IAuthService
     {
         public async Task<GenericResponse<AuthResponse>> RegisterCoachAsync(
-            RegisterCoachRequest request, string baseUrl)
+            RegisterCoachRequest request, string baseUrl, CancellationToken ct = default)
         {
             var response = new GenericResponse<AuthResponse>();
 
-            var validation = await _registerCoachValidator.ValidateAsync(request);
+            var validation = await _registerCoachValidator.ValidateAsync(request, ct);
             if (!validation.IsValid)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -62,7 +63,7 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl);
+            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl, ct);
 
             response.StatusCode = StatusCodes.Status201Created;
             response.Message = emailSent
@@ -78,11 +79,11 @@ namespace CoachingFit.Identity.Services
             };
             return response;
         }
-        public async Task<GenericResponse<AuthResponse>> RegisterTraineeAsync(RegisterTraineeRequest request, string baseUrl)
+        public async Task<GenericResponse<AuthResponse>> RegisterTraineeAsync(RegisterTraineeRequest request, string baseUrl, CancellationToken ct = default)
         {
             var response = new GenericResponse<AuthResponse>();
 
-            var validation = await _registerTraineeValidator.ValidateAsync(request);
+            var validation = await _registerTraineeValidator.ValidateAsync(request, ct);
             if (!validation.IsValid)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -116,7 +117,7 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl);
+            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl, ct);
 
             response.StatusCode = StatusCodes.Status201Created;
             response.Message = emailSent
@@ -133,11 +134,11 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
-        public async Task<GenericResponse<AuthResponse>> LoginAsync(LoginRequest request)
+        public async Task<GenericResponse<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default)
         {
             var response = new GenericResponse<AuthResponse>();
 
-            var validation = await _loginValidator.ValidateAsync(request);
+            var validation = await _loginValidator.ValidateAsync(request, ct);
             if (!validation.IsValid)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -180,6 +181,7 @@ namespace CoachingFit.Identity.Services
             var roles = await _userManager.GetRolesAsync(user);
             var role = roles.FirstOrDefault() ?? nameof(UserRole.Trainee);
             var (token, expiresAt) = _jwtService.GenerateToken(user, role);
+            var (refreshPlaintext, refreshEntity) = await _refreshTokens.IssueAsync(user.Id, ct);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Login successful.";
@@ -191,12 +193,14 @@ namespace CoachingFit.Identity.Services
                 Role = role,
                 IsActive = user.IsActive,
                 Token = token,
-                ExpiresAt = expiresAt
+                ExpiresAt = expiresAt,
+                RefreshToken = refreshPlaintext,
+                RefreshTokenExpiresAt = refreshEntity.ExpiresAt
             };
             return response;
         }
 
-        public async Task<GenericResponse<AuthResponse>> GetCurrentUserAsync(string userId)
+        public async Task<GenericResponse<AuthResponse>> GetCurrentUserAsync(string userId, CancellationToken ct = default)
         {
             var response = new GenericResponse<AuthResponse>();
 
@@ -224,7 +228,7 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
-        public async Task<GenericResponse<bool>> ConfirmEmailAsync(string userId, string token)
+        public async Task<GenericResponse<bool>> ConfirmEmailAsync(string userId, string token, CancellationToken ct = default)
         {
             var response = new GenericResponse<bool>();
 
@@ -257,7 +261,7 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
-        public async Task<GenericResponse<bool>> ResendConfirmationEmailAsync(string email, string baseUrl)
+        public async Task<GenericResponse<bool>> ResendConfirmationEmailAsync(string email, string baseUrl, CancellationToken ct = default)
         {
             var response = new GenericResponse<bool>();
 
@@ -271,7 +275,7 @@ namespace CoachingFit.Identity.Services
                 return response;
             }
 
-            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl);
+            var emailSent = await TrySendConfirmationEmailAsync(user, baseUrl, ct);
             if (!emailSent)
                 _logger.LogWarning("ResendConfirmation: email delivery failed for user {UserId}", user.Id);
 
@@ -281,7 +285,7 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
-        public async Task<GenericResponse<bool>> ActivateCoachAsync(string coachId)
+        public async Task<GenericResponse<bool>> ActivateCoachAsync(string coachId, CancellationToken ct = default)
         {
             var response = new GenericResponse<bool>();
 
@@ -331,7 +335,7 @@ namespace CoachingFit.Identity.Services
                       <br/>
                       <p>The CoachingFit Team</p>
                       """
-                });
+                }, ct);
             }
             catch (Exception ex) when (ex is MailKit.ServiceNotConnectedException
                                           or MailKit.ServiceNotAuthenticatedException
@@ -352,7 +356,7 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
-        public async Task<GenericResponse<IEnumerable<string>>> GetPendingCoachUserIdsAsync()
+        public async Task<GenericResponse<IEnumerable<string>>> GetPendingCoachUserIdsAsync(CancellationToken ct = default)
         {
             var response = new GenericResponse<IEnumerable<string>>();
 
@@ -367,8 +371,96 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
+        public async Task<GenericResponse<AuthResponse>> RefreshTokenAsync(
+            string plaintextRefreshToken, CancellationToken ct = default)
+        {
+            var response = new GenericResponse<AuthResponse>();
+
+            if (string.IsNullOrWhiteSpace(plaintextRefreshToken))
+            {
+                response.StatusCode = StatusCodes.Status401Unauthorized;
+                response.Message = "Invalid refresh token.";
+                return response;
+            }
+
+            var stored = await _refreshTokens.FindByPlaintextAsync(plaintextRefreshToken, ct);
+            if (stored is null)
+            {
+                response.StatusCode = StatusCodes.Status401Unauthorized;
+                response.Message = "Invalid refresh token.";
+                return response;
+            }
+
+            if (stored.RevokedAt is not null)
+            {
+                _logger.LogWarning("Refresh-token reuse detected for user {UserId}", stored.UserId);
+                await _refreshTokens.RevokeAllForUserAsync(stored.UserId, "reuse-detected", ct);
+                response.StatusCode = StatusCodes.Status401Unauthorized;
+                response.Message = "Invalid refresh token.";
+                return response;
+            }
+
+            var now = _timeProvider.GetUtcNow().UtcDateTime;
+            if (now >= stored.ExpiresAt || now >= stored.AbsoluteExpiresAt)
+            {
+                response.StatusCode = StatusCodes.Status401Unauthorized;
+                response.Message = "Refresh token expired.";
+                return response;
+            }
+
+            var user = await _userManager.FindByIdAsync(stored.UserId);
+            if (user is null || !await _userManager.IsEmailConfirmedAsync(user))
+            {
+                response.StatusCode = StatusCodes.Status401Unauthorized;
+                response.Message = "Invalid refresh token.";
+                return response;
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? nameof(UserRole.Trainee);
+            var (token, expiresAt) = _jwtService.GenerateToken(user, role);
+            var (newPlaintext, newEntity) = await _refreshTokens.RotateAsync(stored, ct);
+
+            response.StatusCode = StatusCodes.Status200OK;
+            response.Message = "Token refreshed successfully.";
+            response.Data = new AuthResponse
+            {
+                UserId = user.Id,
+                Email = user.Email!,
+                FullName = user.FullName,
+                Role = role,
+                IsActive = user.IsActive,
+                Token = token,
+                ExpiresAt = expiresAt,
+                RefreshToken = newPlaintext,
+                RefreshTokenExpiresAt = newEntity.ExpiresAt
+            };
+            return response;
+        }
+
+        public async Task<GenericResponse<bool>> RevokeTokenAsync(
+            string plaintextRefreshToken, CancellationToken ct = default)
+        {
+            var response = new GenericResponse<bool>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Token revoked.",
+                Data = true
+            };
+
+            if (string.IsNullOrWhiteSpace(plaintextRefreshToken))
+                return response;
+
+            var stored = await _refreshTokens.FindByPlaintextAsync(plaintextRefreshToken, ct);
+            if (stored is null || stored.RevokedAt is not null)
+                return response;
+
+            await _refreshTokens.RevokeAsync(stored, "logout", ct);
+            return response;
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────────
-        private async Task<bool> TrySendConfirmationEmailAsync(ApplicationUser user, string baseUrl)
+        private async Task<bool> TrySendConfirmationEmailAsync(ApplicationUser user, string baseUrl, CancellationToken ct = default)
         {
             try
             {
@@ -391,7 +483,7 @@ namespace CoachingFit.Identity.Services
                       <p>If you didn't create an account, ignore this email.</p>
                       <p>This link expires in 24 hours.</p>
                       """
-                });
+                }, ct);
                 return true;
             }
             catch (Exception ex) when (ex is MailKit.ServiceNotConnectedException

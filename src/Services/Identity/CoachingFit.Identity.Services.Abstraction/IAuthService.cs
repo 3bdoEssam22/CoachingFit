@@ -6,14 +6,15 @@ namespace CoachingFit.Identity.Services.Abstraction
 {
     public interface IAuthService
     {
-        Task<GenericResponse<AuthResponse>> RegisterCoachAsync(RegisterCoachRequest request, string baseUrl);
-        Task<GenericResponse<AuthResponse>> RegisterTraineeAsync(RegisterTraineeRequest request, string baseUrl);
-        Task<GenericResponse<AuthResponse>> LoginAsync(LoginRequest request);
-        Task<GenericResponse<AuthResponse>> GetCurrentUserAsync(string userId);
-        Task<GenericResponse<bool>> ConfirmEmailAsync(string userId, string token);
-        Task<GenericResponse<bool>> ResendConfirmationEmailAsync(string email, string baseUrl);
-        Task<GenericResponse<bool>> ActivateCoachAsync(string coachId);
-        Task<GenericResponse<IEnumerable<string>>> GetPendingCoachUserIdsAsync();
-
+        Task<GenericResponse<AuthResponse>> RegisterCoachAsync(RegisterCoachRequest request, string baseUrl, CancellationToken ct = default);
+        Task<GenericResponse<AuthResponse>> RegisterTraineeAsync(RegisterTraineeRequest request, string baseUrl, CancellationToken ct = default);
+        Task<GenericResponse<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default);
+        Task<GenericResponse<AuthResponse>> GetCurrentUserAsync(string userId, CancellationToken ct = default);
+        Task<GenericResponse<bool>> ConfirmEmailAsync(string userId, string token, CancellationToken ct = default);
+        Task<GenericResponse<bool>> ResendConfirmationEmailAsync(string email, string baseUrl, CancellationToken ct = default);
+        Task<GenericResponse<bool>> ActivateCoachAsync(string coachId, CancellationToken ct = default);
+        Task<GenericResponse<IEnumerable<string>>> GetPendingCoachUserIdsAsync(CancellationToken ct = default);
+        Task<GenericResponse<AuthResponse>> RefreshTokenAsync(string plaintextRefreshToken, CancellationToken ct = default);
+        Task<GenericResponse<bool>> RevokeTokenAsync(string plaintextRefreshToken, CancellationToken ct = default);
     }
 }

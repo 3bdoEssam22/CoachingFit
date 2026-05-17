@@ -1,4 +1,5 @@
 using CoachingFit.User.API.Extensions;
+using CoachingFit.User.API.Infrastructure.Idempotency;
 using CoachingFit.User.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -17,7 +18,9 @@ namespace CoachingFit.User.API
 
             #region Services
 
-            builder.Services.AddControllers()
+            builder.Services.AddIdempotency();
+
+            builder.Services.AddControllers(o => o.Filters.AddService<IdempotencyKeyFilter>())
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());

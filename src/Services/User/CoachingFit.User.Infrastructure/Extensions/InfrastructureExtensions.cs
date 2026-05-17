@@ -31,6 +31,7 @@ namespace CoachingFit.User.Infrastructure.Extensions
             services.AddScoped<ICloudinaryService, CloudinaryService>();
 
             // Services
+            services.AddSingleton(TimeProvider.System);
             services.AddScoped<ICoachProfileService, CoachProfileService>();
             services.AddScoped<ITraineeProfileService, TraineeProfileService>();
             services.AddScoped<ICoachCertificateService, CoachCertificateService>();

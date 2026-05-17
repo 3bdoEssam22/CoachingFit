@@ -13,7 +13,7 @@ namespace CoachingFit.User.Infrastructure.ExternalServices
             _options.Value.ApiKey,
             _options.Value.ApiSecret));
 
-        public async Task<string> UploadImageAsync(IFormFile file)
+        public async Task<string> UploadImageAsync(IFormFile file, CancellationToken ct = default)
         {
             await using var stream = file.OpenReadStream();
 
@@ -36,7 +36,7 @@ namespace CoachingFit.User.Infrastructure.ExternalServices
             return result.SecureUrl.ToString();
         }
 
-        public async Task<(string Url, string FileType)> UploadCertificateAsync(IFormFile file)
+        public async Task<(string Url, string FileType)> UploadCertificateAsync(IFormFile file, CancellationToken ct = default)
         {
             await using var stream = file.OpenReadStream();
 

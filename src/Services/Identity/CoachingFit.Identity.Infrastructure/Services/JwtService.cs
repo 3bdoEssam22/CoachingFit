@@ -8,12 +8,13 @@ using System.Text;
 
 namespace CoachingFit.Identity.Infrastructure.Services
 {
-    public class JwtService(IConfiguration _configuration) : IJwtService
+    public class JwtService(IConfiguration _configuration, TimeProvider _timeProvider) : IJwtService
     {
         public (string Token, DateTime ExpiresAt) GenerateToken(ApplicationUser user, string role)
         {
-            var expiresAt = DateTime.UtcNow.AddDays(
-                double.Parse(_configuration["Jwt:DurationInDays"]!));
+            var minutes = double.Parse(_configuration["Jwt:AccessTokenDurationInMinutes"]
+                ?? throw new InvalidOperationException("Jwt:AccessTokenDurationInMinutes is not configured."));
+            var expiresAt = _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(minutes);
 
             var claims = new List<Claim>
             {

@@ -45,6 +45,8 @@ namespace CoachingFit.Identity.Infrastructure.Extensions
             // Services
             services.AddSingleton(TimeProvider.System);
             services.AddScoped<IJwtService, JwtService>();
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+            services.AddHostedService<RefreshTokenCleanupWorker>();
             services.AddScoped<IDataInitializer, DataInitializer>();
 
             // Email

@@ -20,11 +20,11 @@ namespace CoachingFit.User.Services
         IValidator<UpdateTraineeProfileRequest> _updateValidator) : ITraineeProfileService
     {
         public async Task<GenericResponse<TraineeProfileResponse>> CreateAsync(
-            CreateTraineeProfileRequest request, string userId)
+            CreateTraineeProfileRequest request, string userId, CancellationToken ct = default)
         {
             var response = new GenericResponse<TraineeProfileResponse>();
 
-            var validation = await _createValidator.ValidateAsync(request);
+            var validation = await _createValidator.ValidateAsync(request, ct);
             if (!validation.IsValid)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -32,7 +32,7 @@ namespace CoachingFit.User.Services
                 return response;
             }
 
-            var exists = await _context.TraineeProfiles.AnyAsync(t => t.UserId == userId);
+            var exists = await _context.TraineeProfiles.AnyAsync(t => t.UserId == userId, ct);
             if (exists)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -45,7 +45,7 @@ namespace CoachingFit.User.Services
             {
                 try
                 {
-                    photoUrl = await _cloudinaryService.UploadImageAsync(request.Photo);
+                    photoUrl = await _cloudinaryService.UploadImageAsync(request.Photo, ct);
                 }
                 catch (Exception ex)
                 {
@@ -72,8 +72,8 @@ namespace CoachingFit.User.Services
                 ProfilePhotoUrl = photoUrl
             };
 
-            await _context.AddTraineeProfileAsync(profile);
-            await _context.SaveChangesAsync();
+            await _context.AddTraineeProfileAsync(profile, ct);
+            await _context.SaveChangesAsync(ct);
 
             response.StatusCode = StatusCodes.Status201Created;
             response.Message = "Trainee profile created successfully.";
@@ -81,11 +81,11 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<TraineeProfileResponse>> GetByIdAsync(Guid id)
+        public async Task<GenericResponse<TraineeProfileResponse>> GetByIdAsync(Guid id, CancellationToken ct = default)
         {
             var response = new GenericResponse<TraineeProfileResponse>();
 
-            var profile = await _context.FindTraineeProfileAsync(id);
+            var profile = await _context.FindTraineeProfileAsync(id, ct);
             if (profile is null)
             {
                 response.StatusCode = StatusCodes.Status404NotFound;
@@ -99,12 +99,12 @@ namespace CoachingFit.User.Services
             return response;
         }
 
-        public async Task<GenericResponse<TraineeProfileResponse>> GetByUserIdAsync(string userId)
+        public async Task<GenericResponse<TraineeProfileResponse>> GetByUserIdAsync(string userId, CancellationToken ct = default)
         {
             var response = new GenericResponse<TraineeProfileResponse>();
 
             var profile = await _context.TraineeProfiles
-                .FirstOrDefaultAsync(t => t.UserId == userId);
+                .FirstOrDefaultAsync(t => t.UserId == userId, ct);
             if (profile is null)
             {
                 response.StatusCode = StatusCodes.Status404NotFound;
@@ -119,11 +119,11 @@ namespace CoachingFit.User.Services
         }
 
         public async Task<GenericResponse<TraineeProfileResponse>> UpdateAsync(
-            UpdateTraineeProfileRequest request, string userId)
+            UpdateTraineeProfileRequest request, string userId, CancellationToken ct = default)
         {
             var response = new GenericResponse<TraineeProfileResponse>();
 
-            var validation = await _updateValidator.ValidateAsync(request);
+            var validation = await _updateValidator.ValidateAsync(request, ct);
             if (!validation.IsValid)
             {
                 response.StatusCode = StatusCodes.Status400BadRequest;
@@ -132,7 +132,7 @@ namespace CoachingFit.User.Services
             }
 
             var profile = await _context.TraineeProfiles
-                .FirstOrDefaultAsync(t => t.UserId == userId);
+                .FirstOrDefaultAsync(t => t.UserId == userId, ct);
             if (profile is null)
             {
                 response.StatusCode = StatusCodes.Status404NotFound;
@@ -151,7 +151,7 @@ namespace CoachingFit.User.Services
             {
                 try
                 {
-                    profile.ProfilePhotoUrl = await _cloudinaryService.UploadImageAsync(request.Photo);
+                    profile.ProfilePhotoUrl = await _cloudinaryService.UploadImageAsync(request.Photo, ct);
                 }
                 catch (Exception ex)
                 {
@@ -163,7 +163,7 @@ namespace CoachingFit.User.Services
             }
 
             _context.UpdateTraineeProfile(profile);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             response.StatusCode = StatusCodes.Status200OK;
             response.Message = "Trainee profile updated successfully.";

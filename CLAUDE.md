@@ -67,14 +67,42 @@ The actual order in `AuthService.LoginAsync` is:
 ```
 This is the intended order. Do NOT suggest reordering or re-adding an IsActive gate here.
 
-### JWT — 30-Day Tokens, No Refresh
-This is a deliberate MVP decision. We are aware of the revocation limitation. It will be addressed when Wallet/Payment services are built. Do NOT flag this as a bug.
+### JWT — 15-Minute Access Tokens + Single-Use Rotating Refresh Tokens
+- Access token: 15 minutes (`Jwt:AccessTokenDurationInMinutes`).
+- Refresh token: 7-day sliding, 90-day absolute (`Jwt:RefreshTokenDurationInDays`, `Jwt:RefreshTokenAbsoluteExpiryInDays`).
+- Refresh tokens are 64 random bytes, base64url-encoded, returned in the JSON body. Stored in DB as SHA-256 hex hashes — never in plaintext.
+- Single-use rotation: every successful `/api/Auth/refresh` invalidates the old refresh token and issues a new one. The 90-day absolute cap does NOT extend on rotation.
+- Theft detection: presenting a *revoked* (already-rotated) refresh token revokes all of that user's active refresh tokens — they must re-login.
+- `/api/Auth/revoke` logs the user out by revoking the supplied refresh token (idempotent, always returns 200).
+- Admin-driven session revocation is not exposed yet (Wallet/Order sprint).
 
 ### Email — TrySendConfirmationEmailAsync
 Returns `bool`. Catches known SMTP / network / mime-parse failures (MailKit `ServiceNotConnectedException`, `ServiceNotAuthenticatedException`, `AuthenticationException`, `SmtpCommandException`, `SmtpProtocolException`, plus `SocketException`, `IOException`, `TimeoutException`, `MimeKit.ParseException`) and returns `false` so registration still succeeds (graceful degradation). Unexpected exceptions (programming bugs) bubble up — this is intentional so real defects aren't silently swallowed. The activation email send in `ActivateCoachAsync` follows the same narrowed-catch pattern.
 
 ### Cloudinary — No public_id Persistence
 We store only `SecureUrl`. Old photos are orphaned on replacement. This is a known deferral, not a bug. It will be addressed later.
+
+### Idempotency-Key System
+Protects 5 high-risk POST endpoints from duplicate execution (network retries, race conditions):
+
+| Service | Endpoint | Risk mitigated |
+|---|---|---|
+| Identity | `POST /api/Auth/register/coach` | Duplicate accounts on retry |
+| Identity | `POST /api/Auth/register/trainee` | Duplicate accounts on retry |
+| Identity | `POST /api/Auth/refresh` | Refresh-token reuse-detection race (double-tap wipes chain) |
+| User | `POST /api/CoachProfile` | Duplicate Cloudinary upload + duplicate profile row |
+| User | `POST /api/CoachCertificate` | Duplicate Cloudinary upload + duplicate certificate row |
+
+**Header contract:**
+- `Idempotency-Key: <ascii, 1–128 chars>` — **REQUIRED** on the 5 scoped endpoints.
+- Missing / invalid → **400** `"Idempotency-Key header is required for this endpoint."`
+- Same key + same body hash → replay cached response (2xx or 4xx; never 5xx).
+- Same key + different body hash → **422** `"Idempotency-Key was reused with a different request body."`
+- Recommended client format: UUID v4 per logical operation.
+
+**Implementation:** `[Idempotent]` attribute + `IdempotencyKeyFilter : IAsyncActionFilter` in each API project's `Infrastructure/Idempotency/` folder. Cache via `HybridCache` (in-memory, 24h TTL). Single-flight via `GetOrCreateAsync` — two concurrent requests with the same key result in one factory execution (fixes the refresh-token race). Body hash = SHA-256 of all bound DTO fields except `IFormFile` (files are not hashed). 5xx responses are never cached; client may retry.
+
+**Known limitation:** In-memory HybridCache is single-instance only. Cache does not survive restarts and is not shared across multiple pods. When Redis is added, register `IDistributedCache` — the filter transparently goes distributed with no code changes.
 
 ---
 
@@ -152,6 +180,8 @@ CoachingFit.sln
 | POST | `/api/Auth/register/coach` | ❌ | Register coach, send confirmation email |
 | POST | `/api/Auth/register/trainee` | ❌ | Register trainee, send confirmation email |
 | POST | `/api/Auth/login` | ❌ | Login all roles |
+| POST | `/api/Auth/refresh` | ❌ | Exchange refresh token for new access+refresh pair |
+| POST | `/api/Auth/revoke` | ❌ | Revoke a refresh token (logout) — idempotent |
 | GET | `/api/Auth/me` | ✅ | Get current user |
 | GET | `/api/Auth/confirm-email?userId=&token=` | ❌ | Confirm email |
 | POST | `/api/Auth/resend-confirmation?email=` | ❌ | Resend confirmation |

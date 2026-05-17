@@ -1,5 +1,6 @@
 
 using CoachingFit.Identity.API.Extensions;
+using CoachingFit.Identity.API.Infrastructure.Idempotency;
 using CoachingFit.Identity.Infrastructure.Extensions;
 using CoachingFit.Identity.Services;
 using CoachingFit.Identity.Services.Abstraction;
@@ -23,7 +24,9 @@ namespace CoachingFit.Identity.API
 
             #region Add services to the container.
 
-            builder.Services.AddControllers();
+            builder.Services.AddIdempotency();
+
+            builder.Services.AddControllers(o => o.Filters.AddService<IdempotencyKeyFilter>());
 
             // Forwarded headers — honours X-Forwarded-For from YARP gateway so rate limiting sees real client IP
             builder.Services.Configure<ForwardedHeadersOptions>(options =>

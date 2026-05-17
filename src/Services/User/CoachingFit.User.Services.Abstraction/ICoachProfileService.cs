@@ -6,10 +6,10 @@ namespace CoachingFit.User.Services.Abstraction
 {
     public interface ICoachProfileService
     {
-        Task<GenericResponse<CoachProfileResponse>> CreateAsync(CreateCoachProfileRequest request, string userId);
-        Task<GenericResponse<CoachProfileResponse>> GetByIdAsync(Guid id);
-        Task<GenericResponse<CoachProfileResponse>> GetByUserIdAsync(string userId);
-        Task<GenericResponse<CoachProfileResponse>> UpdateAsync(UpdateCoachProfileRequest request, string userId);
-        Task<GenericResponse<IEnumerable<CoachProfileResponse>>> GetAllPendingAsync(IEnumerable<string> pendingCoachUserIds);
+        Task<GenericResponse<CoachProfileResponse>> CreateAsync(CreateCoachProfileRequest request, string userId, CancellationToken ct = default);
+        Task<GenericResponse<CoachProfileResponse>> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<GenericResponse<CoachProfileResponse>> GetByUserIdAsync(string userId, CancellationToken ct = default);
+        Task<GenericResponse<CoachProfileResponse>> UpdateAsync(UpdateCoachProfileRequest request, string userId, CancellationToken ct = default);
+        Task<GenericResponse<IEnumerable<CoachProfileResponse>>> GetAllPendingAsync(IEnumerable<string> pendingCoachUserIds, CancellationToken ct = default);
     }
 }

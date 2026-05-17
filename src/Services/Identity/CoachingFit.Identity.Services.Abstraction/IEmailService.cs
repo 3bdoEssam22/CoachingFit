@@ -7,7 +7,7 @@ namespace CoachingFit.Identity.Services.Abstraction
 {
     public interface IEmailService
     {
-        Task SendEmailAsync(EmailMessage email);
+        Task SendEmailAsync(EmailMessage email, CancellationToken ct = default);
 
     }
 }

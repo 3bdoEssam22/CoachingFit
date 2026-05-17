@@ -9,7 +9,7 @@ namespace CoachingFit.Identity.Infrastructure.ExternalServices
 {
     public class EmailService(IOptions<EmailSettings> _options) : IEmailService
     {
-        public async Task SendEmailAsync(EmailMessage email)
+        public async Task SendEmailAsync(EmailMessage email, CancellationToken ct = default)
         {
             var mail = new MimeMessage
             {
@@ -24,10 +24,10 @@ namespace CoachingFit.Identity.Infrastructure.ExternalServices
             mail.Body = builder.ToMessageBody();
 
             using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(_options.Value.Host, _options.Value.Port, SecureSocketOptions.StartTls);
-            await smtp.AuthenticateAsync(_options.Value.Email, _options.Value.Password);
-            await smtp.SendAsync(mail);
-            await smtp.DisconnectAsync(true);
+            await smtp.ConnectAsync(_options.Value.Host, _options.Value.Port, SecureSocketOptions.StartTls, ct);
+            await smtp.AuthenticateAsync(_options.Value.Email, _options.Value.Password, ct);
+            await smtp.SendAsync(mail, ct);
+            await smtp.DisconnectAsync(true, ct);
         }
     }
 }
