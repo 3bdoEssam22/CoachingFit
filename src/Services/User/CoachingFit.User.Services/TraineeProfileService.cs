@@ -16,6 +16,7 @@ namespace CoachingFit.User.Services
         IUserDbContext _context,
         ICloudinaryService _cloudinaryService,
         ILogger<TraineeProfileService> _logger,
+        TimeProvider _timeProvider,
         IValidator<CreateTraineeProfileRequest> _createValidator,
         IValidator<UpdateTraineeProfileRequest> _updateValidator) : ITraineeProfileService
     {
@@ -47,7 +48,7 @@ namespace CoachingFit.User.Services
                 {
                     photoUrl = await _cloudinaryService.UploadImageAsync(request.Photo, ct);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or IOException)
                 {
                     _logger.LogError(ex, "Failed to upload profile photo for trainee {UserId}", userId);
                     response.StatusCode = StatusCodes.Status500InternalServerError;
@@ -145,7 +146,7 @@ namespace CoachingFit.User.Services
             profile.FitnessLevel = request.FitnessLevel;
             profile.Goals = request.Goals;
             profile.MedicalNotes = request.MedicalNotes;
-            profile.UpdatedAt = DateTime.UtcNow;
+            profile.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
             if (request.Photo is not null)
             {
@@ -153,7 +154,7 @@ namespace CoachingFit.User.Services
                 {
                     profile.ProfilePhotoUrl = await _cloudinaryService.UploadImageAsync(request.Photo, ct);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or IOException)
                 {
                     _logger.LogError(ex, "Failed to upload profile photo for trainee {UserId}", userId);
                     response.StatusCode = StatusCodes.Status500InternalServerError;

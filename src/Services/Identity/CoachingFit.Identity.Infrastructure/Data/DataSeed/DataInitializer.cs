@@ -8,7 +8,8 @@ namespace CoachingFit.Identity.Infrastructure.Data.DataSeed
     public class DataInitializer(
         UserManager<ApplicationUser> _userManager,
         RoleManager<IdentityRole> _roleManager,
-        IConfiguration _configuration) : IDataInitializer
+        IConfiguration _configuration,
+        TimeProvider _timeProvider) : IDataInitializer
     {
         public async Task InitializeAsync()
         {
@@ -43,7 +44,7 @@ namespace CoachingFit.Identity.Infrastructure.Data.DataSeed
                 Email = adminEmail,
                 UserName = "admin_coachingfit",
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
             };
 
             var result = await _userManager.CreateAsync(admin, adminPassword);

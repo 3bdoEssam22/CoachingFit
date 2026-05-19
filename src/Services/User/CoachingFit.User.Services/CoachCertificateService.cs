@@ -16,6 +16,7 @@ namespace CoachingFit.User.Services
         IUserDbContext _context,
         ICloudinaryService _cloudinaryService,
         ILogger<CoachCertificateService> _logger,
+        TimeProvider _timeProvider,
         IValidator<UploadCertificateRequest> _uploadValidator,
         IValidator<RejectCertificateRequest> _rejectValidator) : ICoachCertificateService
     {
@@ -47,7 +48,7 @@ namespace CoachingFit.User.Services
             {
                 (fileUrl, fileType) = await _cloudinaryService.UploadCertificateAsync(request.File, ct);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or IOException)
             {
                 _logger.LogError(ex, "Failed to upload certificate for coach {UserId}", userId);
                 response.StatusCode = StatusCodes.Status500InternalServerError;
@@ -227,11 +228,12 @@ namespace CoachingFit.User.Services
                 return response;
             }
 
+            var now = _timeProvider.GetUtcNow().UtcDateTime;
             certificate.Status = CertificateStatus.Approved;
             certificate.ReviewedByAdminId = adminId;
-            certificate.ReviewedAt = DateTime.UtcNow;
+            certificate.ReviewedAt = now;
             certificate.RejectionReason = null;
-            certificate.UpdatedAt = DateTime.UtcNow;
+            certificate.UpdatedAt = now;
 
             _context.UpdateCoachCertificate(certificate);
             await _context.SaveChangesAsync(ct);
@@ -269,11 +271,12 @@ namespace CoachingFit.User.Services
                 return response;
             }
 
+            var now = _timeProvider.GetUtcNow().UtcDateTime;
             certificate.Status = CertificateStatus.Rejected;
             certificate.ReviewedByAdminId = adminId;
-            certificate.ReviewedAt = DateTime.UtcNow;
+            certificate.ReviewedAt = now;
             certificate.RejectionReason = request.Reason;
-            certificate.UpdatedAt = DateTime.UtcNow;
+            certificate.UpdatedAt = now;
 
             _context.UpdateCoachCertificate(certificate);
             await _context.SaveChangesAsync(ct);

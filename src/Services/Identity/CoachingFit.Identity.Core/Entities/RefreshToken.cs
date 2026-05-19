@@ -17,8 +17,9 @@ namespace CoachingFit.Identity.Core.Entities
 
         public string? ReplacedByTokenHash { get; set; }
 
-        public bool IsActive => RevokedAt is null
-            && DateTime.UtcNow < ExpiresAt
-            && DateTime.UtcNow < AbsoluteExpiresAt;
+        public bool IsActiveAt(DateTimeOffset now) =>
+            RevokedAt is null
+            && now.UtcDateTime < ExpiresAt
+            && now.UtcDateTime < AbsoluteExpiresAt;
     }
 }

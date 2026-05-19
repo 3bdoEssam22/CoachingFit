@@ -20,7 +20,7 @@ namespace CoachingFit.User.Services.Validators
 
             RuleFor(x => x.IssuedDate)
                 .NotEmpty().WithMessage("Issued date is required.")
-                .LessThanOrEqualTo(DateTime.UtcNow).WithMessage("Issued date cannot be in the future.");
+                .Must(date => date <= DateTime.UtcNow).WithMessage("Issued date cannot be in the future.");
 
             RuleFor(x => x.File)
                 .NotNull().WithMessage("Certificate file is required.");

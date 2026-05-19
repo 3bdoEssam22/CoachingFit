@@ -40,19 +40,21 @@ namespace CoachingFit.Identity.API.Infrastructure.Idempotency
             var action = ctx.RouteData.Values["action"];
             var cacheKey = $"idem:{controller}:{action}:{idempotencyKey}";
 
+            bool factoryRan = false;
             CachedActionResult? freshResult = null;
             var cached = await _cache.GetOrCreateAsync<CachedActionResult?>(
                 cacheKey,
                 async ct =>
                 {
                     var executed = await next();
+                    factoryRan = true;
                     freshResult = CaptureResult(executed, bodyHash);
                     return freshResult;
                 },
                 cancellationToken: ctx.HttpContext.RequestAborted);
 
-            // freshResult is non-null when the factory ran (cache miss path — result already set by next())
-            if (freshResult is not null)
+            // factoryRan is true when the cache miss path ran (result already set by next())
+            if (factoryRan)
                 return;
 
             // Cache hit — replay

@@ -16,8 +16,8 @@ namespace CoachingFit.User.Services.Validators
 
             RuleFor(x => x.DateOfBirth)
                 .NotEmpty().WithMessage("Date of birth is required.")
-                .LessThan(DateTime.UtcNow.AddYears(-10)).WithMessage("Trainee must be at least 10 years old.")
-                .GreaterThan(DateTime.UtcNow.AddYears(-100)).WithMessage("Invalid date of birth.");
+                .Must(dob => dob < DateTime.UtcNow.AddYears(-10)).WithMessage("Trainee must be at least 10 years old.")
+                .Must(dob => dob > DateTime.UtcNow.AddYears(-100)).WithMessage("Invalid date of birth.");
 
             RuleFor(x => x.WeightKg)
                 .GreaterThan(0).WithMessage("Weight must be greater than 0.")

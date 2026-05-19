@@ -36,7 +36,6 @@ namespace CoachingFit.Identity.Infrastructure.Data.Context
                 entity.Property(rt => rt.RevokeReason).HasMaxLength(64);
                 entity.Property(rt => rt.ReplacedByTokenHash).HasMaxLength(128);
                 entity.Property(rt => rt.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
-                entity.Ignore(rt => rt.IsActive);
 
                 entity.HasIndex(rt => rt.TokenHash).IsUnique();
                 entity.HasIndex(rt => rt.UserId);
