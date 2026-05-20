@@ -116,5 +116,32 @@ namespace CoachingFit.Identity.API.Controllers
             var result = await _authService.GetPendingCoachUserIdsAsync(ct);
             return HandleResponse(result);
         }
+
+        // GET api/Auth/coaches/all
+        [Authorize(Roles = "Admin")]
+        [HttpGet("coaches/all")]
+        public async Task<ActionResult<GenericResponse<IEnumerable<string>>>> GetAllCoaches(CancellationToken ct)
+        {
+            var result = await _authService.GetAllCoachUserIdsAsync(ct);
+            return HandleResponse(result);
+        }
+
+        // GET api/Auth/trainees/all
+        [Authorize(Roles = "Admin")]
+        [HttpGet("trainees/all")]
+        public async Task<ActionResult<GenericResponse<IEnumerable<string>>>> GetAllTrainees(CancellationToken ct)
+        {
+            var result = await _authService.GetAllTraineeUserIdsAsync(ct);
+            return HandleResponse(result);
+        }
+
+        // GET api/Auth/stats
+        [Authorize(Roles = "Admin")]
+        [HttpGet("stats")]
+        public async Task<ActionResult<GenericResponse<AdminStatsResponse>>> GetStats(CancellationToken ct)
+        {
+            var result = await _authService.GetStatsAsync(ct);
+            return HandleResponse(result);
+        }
     }
 }

@@ -16,5 +16,8 @@ namespace CoachingFit.Identity.Services.Abstraction
         Task<GenericResponse<IEnumerable<string>>> GetPendingCoachUserIdsAsync(CancellationToken ct = default);
         Task<GenericResponse<AuthResponse>> RefreshTokenAsync(string plaintextRefreshToken, CancellationToken ct = default);
         Task<GenericResponse<bool>> RevokeTokenAsync(string plaintextRefreshToken, CancellationToken ct = default);
+        Task<GenericResponse<IEnumerable<string>>> GetAllCoachUserIdsAsync(CancellationToken ct = default);
+        Task<GenericResponse<IEnumerable<string>>> GetAllTraineeUserIdsAsync(CancellationToken ct = default);
+        Task<GenericResponse<AdminStatsResponse>> GetStatsAsync(CancellationToken ct = default);
     }
 }

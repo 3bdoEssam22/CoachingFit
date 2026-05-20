@@ -60,5 +60,14 @@ namespace CoachingFit.User.API.Controllers
             var result = await _traineeProfileService.UpdateAsync(request, userId, ct);
             return HandleResponse(result);
         }
+
+        // GET api/TraineeProfile/all
+        [Authorize(Roles = "Admin")]
+        [HttpGet("all")]
+        public async Task<ActionResult<GenericResponse<IEnumerable<TraineeProfileResponse>>>> GetAll(CancellationToken ct)
+        {
+            var result = await _traineeProfileService.GetAllAsync(ct);
+            return HandleResponse(result);
+        }
     }
 }

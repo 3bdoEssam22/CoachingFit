@@ -10,5 +10,6 @@ namespace CoachingFit.User.Services.Abstraction
         Task<GenericResponse<TraineeProfileResponse>> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<GenericResponse<TraineeProfileResponse>> GetByUserIdAsync(string userId, CancellationToken ct = default);
         Task<GenericResponse<TraineeProfileResponse>> UpdateAsync(UpdateTraineeProfileRequest request, string userId, CancellationToken ct = default);
+        Task<GenericResponse<IEnumerable<TraineeProfileResponse>>> GetAllAsync(CancellationToken ct = default);
     }
 }

@@ -172,6 +172,17 @@ namespace CoachingFit.User.Services
             return response;
         }
 
+        public async Task<GenericResponse<IEnumerable<TraineeProfileResponse>>> GetAllAsync(CancellationToken ct = default)
+        {
+            var profiles = await _context.TraineeProfiles.AsNoTracking().ToListAsync(ct);
+            return new GenericResponse<IEnumerable<TraineeProfileResponse>>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = "All trainee profiles retrieved successfully.",
+                Data = profiles.Select(MapToResponse)
+            };
+        }
+
         private static TraineeProfileResponse MapToResponse(TraineeProfile profile) => new()
         {
             Id = profile.Id,

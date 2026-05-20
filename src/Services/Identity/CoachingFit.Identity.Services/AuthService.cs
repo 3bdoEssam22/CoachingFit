@@ -459,6 +459,51 @@ namespace CoachingFit.Identity.Services
             return response;
         }
 
+        public async Task<GenericResponse<IEnumerable<string>>> GetAllCoachUserIdsAsync(CancellationToken ct = default)
+        {
+            var coaches = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Coach));
+            return new GenericResponse<IEnumerable<string>>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = "All coach IDs retrieved successfully.",
+                Data = coaches.Select(c => c.Id)
+            };
+        }
+
+        public async Task<GenericResponse<IEnumerable<string>>> GetAllTraineeUserIdsAsync(CancellationToken ct = default)
+        {
+            var trainees = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Trainee));
+            return new GenericResponse<IEnumerable<string>>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = "All trainee IDs retrieved successfully.",
+                Data = trainees.Select(t => t.Id)
+            };
+        }
+
+        public async Task<GenericResponse<AdminStatsResponse>> GetStatsAsync(CancellationToken ct = default)
+        {
+            var coachesTask = _userManager.GetUsersInRoleAsync(nameof(UserRole.Coach));
+            var traineesTask = _userManager.GetUsersInRoleAsync(nameof(UserRole.Trainee));
+            await Task.WhenAll(coachesTask, traineesTask);
+
+            var coaches = await coachesTask;
+            var trainees = await traineesTask;
+
+            return new GenericResponse<AdminStatsResponse>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Stats retrieved successfully.",
+                Data = new AdminStatsResponse
+                {
+                    TotalCoaches = coaches.Count,
+                    ActiveCoaches = coaches.Count(c => c.IsActive),
+                    PendingCoaches = coaches.Count(c => !c.IsActive),
+                    TotalTrainees = trainees.Count
+                }
+            };
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────────
         private async Task<bool> TrySendConfirmationEmailAsync(ApplicationUser user, string baseUrl, CancellationToken ct = default)
         {
