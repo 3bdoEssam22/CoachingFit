@@ -40,13 +40,13 @@ namespace CoachingFit.User.Services.Validators
 
             When(x => x.Photo is not null, () =>
             {
-                RuleFor(x => x.Photo!.Length)
-                    .LessThanOrEqualTo(5 * 1024 * 1024)
-                    .WithMessage("Photo must not exceed 5MB.");
-
                 RuleFor(x => x.Photo!.ContentType)
                     .Must(type => _allowedTypes.Contains(type))
                     .WithMessage("Photo must be a JPG, PNG, or WebP image.");
+
+                RuleFor(x => x.Photo!.Length)
+                    .LessThanOrEqualTo(5 * 1024 * 1024)
+                    .WithMessage("Photo must not exceed 5MB.");
             });
         }
     }
