@@ -530,6 +530,24 @@ namespace CoachingFit.Identity.Services
             };
         }
 
+        public async Task<GenericResponse<IEnumerable<TraineeUserSummary>>> GetTraineeDetailsAsync(CancellationToken ct = default)
+        {
+            var trainees = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Trainee));
+            var summaries = trainees.Select(t => new TraineeUserSummary
+            {
+                UserId = t.Id,
+                FullName = $"{t.FirstName} {t.LastName}".Trim(),
+                Email = t.Email ?? string.Empty
+            });
+
+            return new GenericResponse<IEnumerable<TraineeUserSummary>>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Trainee details retrieved successfully.",
+                Data = summaries
+            };
+        }
+
         public async Task<GenericResponse<bool>> RejectCoachAsync(string coachId, string reason, CancellationToken ct = default)
         {
             var response = new GenericResponse<bool>();

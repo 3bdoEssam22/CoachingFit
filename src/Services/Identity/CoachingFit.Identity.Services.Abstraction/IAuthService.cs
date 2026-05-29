@@ -23,5 +23,6 @@ namespace CoachingFit.Identity.Services.Abstraction
         Task<GenericResponse<CoachUserSummary>> GetCoachSummaryAsync(string coachId, CancellationToken ct = default);
         Task<GenericResponse<bool>> RejectCoachAsync(string coachId, string reason, CancellationToken ct = default);
         Task<GenericResponse<bool>> DeactivateCoachAsync(string coachId, string reason, CancellationToken ct = default);
+        Task<GenericResponse<IEnumerable<TraineeUserSummary>>> GetTraineeDetailsAsync(CancellationToken ct = default);
     }
 }

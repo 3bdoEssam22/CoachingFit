@@ -13,6 +13,11 @@ You are reviewing and working on **CoachingFit**, a commission-based fitness mar
 ### Sprint 2 — API Gateway / YARP (port 5001) ✅ COMPLETE
 ### Sprint 3 — User Service (port 7024) ✅ COMPLETE
 ### Sprint 4 — Coach Certificates (User Service) ✅ COMPLETE
+### Sprint 5 — Admin Dashboard Integration ✅ COMPLETE
+- Admin-only listing endpoints: `GET /api/Auth/coaches/pending`, `coaches/all`, `coaches/details`, `coaches/{id}/summary`, `trainees/all`, `stats`
+- Admin-only profile endpoints: `GET /api/CoachProfile/all`, `GET /api/TraineeProfile/all`
+- Coach lifecycle: `PUT /api/Auth/coaches/{id}/activate` / `reject` / `deactivate` — each sends a notification email
+- `ApplicationUser.RejectionReason` (string?) + `RejectedAt` (DateTime?) — added in migration `20260528221442_AddCoachRejection`. Cleared automatically on re-activate. "Pending" lists and the stats counter exclude rejected coaches.
 
 All sprints are merged and tested. The backend is stable.
 
@@ -44,6 +49,14 @@ Infrastructure → DbContext, Migrations, External services
 
 ### GenericResponse<T>
 Every endpoint returns `GenericResponse<T>`. This is the pattern. Do not suggest alternatives.
+
+### No UseHttpsRedirection in Services
+The Identity and User services do **not** call `app.UseHttpsRedirection()`. The gateway is the TLS
+boundary; services are internal and bind both HTTP and HTTPS but are only addressable through the
+gateway. Adding `UseHttpsRedirection` to a service caused 307 redirects when YARP forwarded with
+`X-Forwarded-Proto: http`, breaking request-body uploads. Gateway clusters also point at the
+**HTTP** ports of each service (`http://localhost:5234`, `http://localhost:5284` in dev) — there is
+no reason to do TLS on the localhost hop.
 
 ---
 
@@ -292,7 +305,7 @@ These are product decisions baked into the domain. Encode them as you build the 
 These values are empty/wildcard in `appsettings.json` (dev-safe defaults). Before any production or staging deploy, set these:
 
 - `AllowedHosts` — set to the real public domain(s) in `appsettings.Production.json` or the `AllowedHosts` environment variable (e.g. `"api.coachingfit.com"`). Never leave `"*"` in production.
-- `App:BaseUrl` — the publicly reachable URL of the Identity API (e.g. `"https://api.coachingfit.com"`). Used to build the email-confirmation link; must **not** be derived from the `Host` request header.
+- `App:BaseUrl` — the publicly reachable URL of **the gateway** (e.g. `"https://api.coachingfit.com"`, or `"http://localhost:5000"` in dev). Used to build the email-confirmation link; must **not** be derived from the `Host` request header. Pointing it at the gateway (not Identity directly) means emailed links flow through the same public entry point as every other client request — consistent with the rule below.
 - `App:AllowedOrigins` — array of browser origins permitted to call the APIs (e.g. `["https://admin.coachingfit.com"]`). Populated when the Admin Dashboard domain is known. In Dev this is ignored (all origins allowed).
 - `Jwt:Key` — must be ≥ 32 bytes (256 bits). Both services validate at startup and refuse to start with a missing or too-short key.
 

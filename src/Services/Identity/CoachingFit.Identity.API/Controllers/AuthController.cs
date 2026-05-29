@@ -135,6 +135,15 @@ namespace CoachingFit.Identity.API.Controllers
             return HandleResponse(result);
         }
 
+        // GET api/Auth/trainees/details
+        [Authorize(Roles = "Admin")]
+        [HttpGet("trainees/details")]
+        public async Task<ActionResult<GenericResponse<IEnumerable<TraineeUserSummary>>>> GetTraineeDetails(CancellationToken ct)
+        {
+            var result = await _authService.GetTraineeDetailsAsync(ct);
+            return HandleResponse(result);
+        }
+
         // GET api/Auth/stats
         [Authorize(Roles = "Admin")]
         [HttpGet("stats")]
