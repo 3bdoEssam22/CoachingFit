@@ -312,6 +312,8 @@ namespace CoachingFit.Identity.Services
             }
 
             user.IsActive = true;
+            user.RejectionReason = null;
+            user.RejectedAt = null;
             user.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
             var result = await _userManager.UpdateAsync(user);
@@ -361,8 +363,10 @@ namespace CoachingFit.Identity.Services
             var response = new GenericResponse<IEnumerable<string>>();
 
             var coaches = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Coach));
+            // Pending = inactive AND not previously rejected. Rejected coaches stay out of the
+            // pending queue until they re-apply (which clears RejectionReason via re-upload).
             var pendingIds = coaches
-                .Where(c => !c.IsActive)
+                .Where(c => !c.IsActive && c.RejectionReason == null)
                 .Select(c => c.Id);
 
             response.StatusCode = StatusCodes.Status200OK;
@@ -483,12 +487,10 @@ namespace CoachingFit.Identity.Services
 
         public async Task<GenericResponse<AdminStatsResponse>> GetStatsAsync(CancellationToken ct = default)
         {
-            var coachesTask = _userManager.GetUsersInRoleAsync(nameof(UserRole.Coach));
-            var traineesTask = _userManager.GetUsersInRoleAsync(nameof(UserRole.Trainee));
-            await Task.WhenAll(coachesTask, traineesTask);
-
-            var coaches = await coachesTask;
-            var trainees = await traineesTask;
+            // Must run sequentially — UserManager shares the scoped DbContext and EF Core
+            // forbids concurrent operations on a single context instance.
+            var coaches = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Coach));
+            var trainees = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Trainee));
 
             return new GenericResponse<AdminStatsResponse>
             {
@@ -498,10 +500,234 @@ namespace CoachingFit.Identity.Services
                 {
                     TotalCoaches = coaches.Count,
                     ActiveCoaches = coaches.Count(c => c.IsActive),
-                    PendingCoaches = coaches.Count(c => !c.IsActive),
+                    // Pending = inactive AND not previously rejected. Matches the same
+                    // definition used by GetPendingCoachUserIdsAsync so the card count
+                    // always matches the /coaches/pending list length.
+                    PendingCoaches = coaches.Count(c => !c.IsActive && c.RejectionReason == null),
                     TotalTrainees = trainees.Count
                 }
             };
+        }
+
+        public async Task<GenericResponse<IEnumerable<CoachUserSummary>>> GetCoachDetailsAsync(CancellationToken ct = default)
+        {
+            var coaches = await _userManager.GetUsersInRoleAsync(nameof(UserRole.Coach));
+            var summaries = coaches.Select(c => new CoachUserSummary
+            {
+                UserId = c.Id,
+                FullName = $"{c.FirstName} {c.LastName}".Trim(),
+                Email = c.Email ?? string.Empty,
+                IsActive = c.IsActive,
+                RejectionReason = c.RejectionReason,
+                RejectedAt = c.RejectedAt
+            });
+
+            return new GenericResponse<IEnumerable<CoachUserSummary>>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Coach details retrieved successfully.",
+                Data = summaries
+            };
+        }
+
+        public async Task<GenericResponse<bool>> RejectCoachAsync(string coachId, string reason, CancellationToken ct = default)
+        {
+            var response = new GenericResponse<bool>();
+
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Message = "Rejection reason is required.";
+                return response;
+            }
+
+            var user = await _userManager.FindByIdAsync(coachId);
+            if (user is null)
+            {
+                response.StatusCode = StatusCodes.Status404NotFound;
+                response.Message = "Coach not found.";
+                return response;
+            }
+
+            if (!await _userManager.IsInRoleAsync(user, nameof(UserRole.Coach)))
+            {
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Message = "User is not a coach.";
+                return response;
+            }
+
+            if (user.IsActive)
+            {
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Message = "Coach is already active and cannot be rejected. Deactivate first.";
+                return response;
+            }
+
+            user.RejectionReason = reason;
+            user.RejectedAt = _timeProvider.GetUtcNow().UtcDateTime;
+            user.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+
+            var persisted = await _userManager.UpdateAsync(user);
+            if (!persisted.Succeeded)
+            {
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = string.Join(" | ", persisted.Errors.Select(e => e.Description));
+                return response;
+            }
+
+            try
+            {
+                await _emailService.SendEmailAsync(new EmailMessage
+                {
+                    To = user.Email!,
+                    Subject = "CoachingFit — Application Update",
+                    Body = $"""
+                      <h2>Hi {user.FirstName},</h2>
+                      <p>We've reviewed your coach application and we're unable to approve it at this time.</p>
+                      <p><strong>Reason:</strong></p>
+                      <blockquote style="border-left: 3px solid #ccc; padding-left: 12px; color: #555;">
+                        {System.Net.WebUtility.HtmlEncode(reason)}
+                      </blockquote>
+                      <p>You can update your profile and upload new certificates from the app, and we'll review again.</p>
+                      <br/>
+                      <p>The CoachingFit Team</p>
+                      """
+                }, ct);
+            }
+            catch (Exception ex) when (ex is MailKit.ServiceNotConnectedException
+                                          or MailKit.ServiceNotAuthenticatedException
+                                          or MailKit.Security.AuthenticationException
+                                          or MailKit.Net.Smtp.SmtpCommandException
+                                          or MailKit.Net.Smtp.SmtpProtocolException
+                                          or System.Net.Sockets.SocketException
+                                          or System.IO.IOException
+                                          or TimeoutException
+                                          or MimeKit.ParseException)
+            {
+                _logger.LogError(ex, "Failed to send rejection email to coach {CoachId}", coachId);
+                // Rejection is persisted; email failure should not undo it. Log and continue.
+            }
+
+            response.StatusCode = StatusCodes.Status200OK;
+            response.Message = "Coach rejected.";
+            response.Data = true;
+            return response;
+        }
+
+        public async Task<GenericResponse<CoachUserSummary>> GetCoachSummaryAsync(string coachId, CancellationToken ct = default)
+        {
+            var response = new GenericResponse<CoachUserSummary>();
+
+            var user = await _userManager.FindByIdAsync(coachId);
+            if (user is null)
+            {
+                response.StatusCode = StatusCodes.Status404NotFound;
+                response.Message = "Coach not found.";
+                return response;
+            }
+
+            if (!await _userManager.IsInRoleAsync(user, nameof(UserRole.Coach)))
+            {
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Message = "User is not a coach.";
+                return response;
+            }
+
+            response.StatusCode = StatusCodes.Status200OK;
+            response.Message = "Coach summary retrieved.";
+            response.Data = new CoachUserSummary
+            {
+                UserId = user.Id,
+                FullName = $"{user.FirstName} {user.LastName}".Trim(),
+                Email = user.Email ?? string.Empty,
+                IsActive = user.IsActive,
+                RejectionReason = user.RejectionReason,
+                RejectedAt = user.RejectedAt
+            };
+            return response;
+        }
+
+        public async Task<GenericResponse<bool>> DeactivateCoachAsync(string coachId, string reason, CancellationToken ct = default)
+        {
+            var response = new GenericResponse<bool>();
+
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Message = "Deactivation reason is required.";
+                return response;
+            }
+
+            var user = await _userManager.FindByIdAsync(coachId);
+            if (user is null)
+            {
+                response.StatusCode = StatusCodes.Status404NotFound;
+                response.Message = "Coach not found.";
+                return response;
+            }
+
+            if (!await _userManager.IsInRoleAsync(user, nameof(UserRole.Coach)))
+            {
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Message = "User is not a coach.";
+                return response;
+            }
+
+            if (!user.IsActive)
+            {
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                response.Message = "Coach is already inactive.";
+                return response;
+            }
+
+            user.IsActive = false;
+            user.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = string.Join(" | ", result.Errors.Select(e => e.Description));
+                return response;
+            }
+
+            try
+            {
+                await _emailService.SendEmailAsync(new EmailMessage
+                {
+                    To = user.Email!,
+                    Subject = "CoachingFit — Account Deactivated",
+                    Body = $"""
+                      <h2>Hi {user.FirstName},</h2>
+                      <p>Your CoachingFit coach account has been deactivated by an administrator. You will not be able to log in until the account is reactivated.</p>
+                      <p><strong>Reason:</strong></p>
+                      <blockquote style="border-left: 3px solid #ccc; padding-left: 12px; color: #555;">
+                        {System.Net.WebUtility.HtmlEncode(reason)}
+                      </blockquote>
+                      <p>If you believe this was a mistake, please contact our support team.</p>
+                      <br/>
+                      <p>The CoachingFit Team</p>
+                      """
+                }, ct);
+            }
+            catch (Exception ex) when (ex is MailKit.ServiceNotConnectedException
+                                          or MailKit.ServiceNotAuthenticatedException
+                                          or MailKit.Security.AuthenticationException
+                                          or MailKit.Net.Smtp.SmtpCommandException
+                                          or MailKit.Net.Smtp.SmtpProtocolException
+                                          or System.Net.Sockets.SocketException
+                                          or System.IO.IOException
+                                          or TimeoutException
+                                          or MimeKit.ParseException)
+            {
+                _logger.LogError(ex, "Failed to send deactivation email to coach {CoachId}", coachId);
+                // Don't fail the whole operation — the deactivation already succeeded.
+            }
+
+            response.StatusCode = StatusCodes.Status200OK;
+            response.Message = "Coach deactivated successfully.";
+            response.Data = true;
+            return response;
         }
 
         // ── Private Helpers ────────────────────────────────────────────────────────

@@ -143,5 +143,41 @@ namespace CoachingFit.Identity.API.Controllers
             var result = await _authService.GetStatsAsync(ct);
             return HandleResponse(result);
         }
+
+        // GET api/Auth/coaches/details
+        [Authorize(Roles = "Admin")]
+        [HttpGet("coaches/details")]
+        public async Task<ActionResult<GenericResponse<IEnumerable<CoachUserSummary>>>> GetCoachDetails(CancellationToken ct)
+        {
+            var result = await _authService.GetCoachDetailsAsync(ct);
+            return HandleResponse(result);
+        }
+
+        // PUT api/Auth/coaches/{id}/reject
+        [Authorize(Roles = "Admin")]
+        [HttpPut("coaches/{id}/reject")]
+        public async Task<ActionResult<GenericResponse<bool>>> RejectCoach(string id, [FromBody] RejectCoachRequest request, CancellationToken ct)
+        {
+            var result = await _authService.RejectCoachAsync(id, request?.Reason ?? string.Empty, ct);
+            return HandleResponse(result);
+        }
+
+        // GET api/Auth/coaches/{id}/summary
+        [Authorize(Roles = "Admin")]
+        [HttpGet("coaches/{id}/summary")]
+        public async Task<ActionResult<GenericResponse<CoachUserSummary>>> GetCoachSummary(string id, CancellationToken ct)
+        {
+            var result = await _authService.GetCoachSummaryAsync(id, ct);
+            return HandleResponse(result);
+        }
+
+        // PUT api/Auth/coaches/{id}/deactivate
+        [Authorize(Roles = "Admin")]
+        [HttpPut("coaches/{id}/deactivate")]
+        public async Task<ActionResult<GenericResponse<bool>>> DeactivateCoach(string id, [FromBody] DeactivateCoachRequest request, CancellationToken ct)
+        {
+            var result = await _authService.DeactivateCoachAsync(id, request?.Reason ?? string.Empty, ct);
+            return HandleResponse(result);
+        }
     }
 }

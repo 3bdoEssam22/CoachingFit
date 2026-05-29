@@ -94,10 +94,13 @@ namespace CoachingFit.User.API.Infrastructure.Idempotency
 
         private static string ComputeBodyHash(IDictionary<string, object?> arguments)
         {
-            // Exclude IFormFile arguments from hash — hash only serializable fields
+            // Hash only JSON-serializable body fields. Skip framework-injected parameters
+            // (CancellationToken contains an IntPtr WaitHandle; form types are non-serializable).
             var hashable = arguments
-                .Where(kv => kv.Value is not Microsoft.AspNetCore.Http.IFormFile
-                          && kv.Value is not IEnumerable<Microsoft.AspNetCore.Http.IFormFile>)
+                .Where(kv => kv.Value is not CancellationToken
+                          && kv.Value is not Microsoft.AspNetCore.Http.IFormFile
+                          && kv.Value is not IEnumerable<Microsoft.AspNetCore.Http.IFormFile>
+                          && kv.Value is not Microsoft.AspNetCore.Http.IFormCollection)
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
 
             var json = JsonSerializer.Serialize(hashable, new JsonSerializerOptions { WriteIndented = false });

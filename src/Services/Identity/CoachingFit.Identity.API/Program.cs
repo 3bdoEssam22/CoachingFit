@@ -131,8 +131,6 @@ namespace CoachingFit.Identity.API
             if (!app.Environment.IsDevelopment())
                 app.UseHsts();
 
-            app.UseHttpsRedirection();
-
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
