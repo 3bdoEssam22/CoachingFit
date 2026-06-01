@@ -1,0 +1,37 @@
+# Local-dev infrastructure for CoachingFit.
+# Currently: RabbitMQ (message broker) with the management UI.
+# Usage:
+#   docker compose up -d        # start in the background
+#   docker compose ps           # see it running
+#   docker compose logs -f rabbitmq
+#   docker compose down         # stop (keeps data via the named volume)
+#   docker compose down -v      # stop AND wipe the volume (fresh broker)
+#
+# AMQP (apps connect here):     localhost:5672
+# Management UI (your browser): http://localhost:15672   (login: guest / guest)
+#
+# NOTE: the built-in "guest" user can ONLY connect from localhost. That is fine
+# for local dev. In production we create a real user with a real password.
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: coachingfit-rabbitmq
+    hostname: coachingfit-rabbitmq
+    ports:
+      - "5672:5672"     # AMQP protocol (MassTransit/apps connect here)
+      - "15672:15672"   # Management web UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq   # durable: messages/queues survive a restart
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  rabbitmq-data:

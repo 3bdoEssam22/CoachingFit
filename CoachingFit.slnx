@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/CoachingFit.Contracts/CoachingFit.Contracts.csproj" />
+  </Folder>
   <Folder Name="/src/Gateway/">
     <Project Path="src/Gateway/CoachingFit.Gateway/CoachingFit.Gateway.csproj" Id="262087c3-890f-4bc4-9cf5-47c6af6e65c3" />
   </Folder>
@@ -11,6 +14,9 @@
     <Project Path="src/Services/Identity/CoachingFit.Identity.Services.Abstraction/CoachingFit.Identity.Services.Abstraction.csproj" />
     <Project Path="src/Services/Identity/CoachingFit.Identity.Services/CoachingFit.Identity.Services.csproj" />
     <Project Path="src/Services/Identity/CoachingFit.Identity.Shared/CoachingFit.Identity.Shared.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Notification/">
+    <Project Path="src/Services/Notification/CoachingFit.Notification.Worker/CoachingFit.Notification.Worker.csproj" />
   </Folder>
   <Folder Name="/src/Services/User/">
     <Project Path="src/Services/User/CoachingFit.User.API/CoachingFit.User.API.csproj" Id="ff43a5c3-6bed-48a1-a42b-f131a75a1343" />
